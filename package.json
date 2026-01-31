@@ -1,0 +1,39 @@
+{
+  "name": "ai-forensic-analyzer",
+  "version": "2.0.0",
+  "description": "Forensic Analysis of AI-Generated Content via API Orchestration",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.6.8",
+    "crypto-js": "^4.2.0",
+    "d3-scale": "^4.0.2",
+    "fft.js": "^4.0.4",
+    "framer-motion": "^11.1.7",
+    "html2canvas": "^1.4.1",
+    "ioredis": "^5.4.1",
+    "jspdf": "^4.0.0",
+    "lucide-react": "^0.378.0",
+    "next": "14.2.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^2.15.4"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "@types/node": "^20.12.8",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.3",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js
+.next/
+out/
+build/
+
+# Production
+dist/
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pem
+
+# Documentation (exclude these from GitHub)
+ADVANCED_VISUALIZATIONS.md
+FINAL_IMPLEMENTATION_SUMMARY.md
+GITHUB_UPLOAD_GUIDE.md
+IMPLEMENTATION_COMPLETE.md
+NOVEL_CONTRIBUTIONS.md
+QUICK_REFERENCE.md
+README.md
+SPATIAL_ANALYSIS_FIXES.md
+UI_IMPROVEMENTS_SUMMARY.md
+test-gemini.js
