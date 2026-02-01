@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ToastProvider } from './ToastProvider';
 
 export function Header() {
@@ -67,14 +68,17 @@ export function BackgroundEffects() {
 }
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const isCustomLayoutRoute = pathname === '/' || pathname === '/features' || pathname === '/working-model' || pathname === '/novelty' || pathname === '/analyze';
+
     return (
         <div className="app-wrapper">
             <ToastProvider />
-            <Header />
-            <main className="main-content">
+            {!isCustomLayoutRoute && <Header />}
+            <main className={isCustomLayoutRoute ? "" : "main-content"}>
                 {children}
             </main>
-            <Footer />
+            {!isCustomLayoutRoute && <Footer />}
             <BackgroundEffects />
         </div>
     );
