@@ -1,0 +1,16 @@
+{
+    "name": "AI Forensic Analyzer",
+    "short_name": "AI Forensic",
+    "description": "Forensic Analysis of AI-Generated Content via API Orchestration",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0f1e",
+    "theme_color": "#6366f1",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}

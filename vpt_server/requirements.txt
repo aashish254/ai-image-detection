@@ -1,0 +1,31 @@
+# ============================================
+# VPT Server Requirements
+# ============================================
+# Core dependencies (work on ALL platforms)
+# ============================================
+torch
+torchvision
+transformers
+pillow
+fastapi
+uvicorn[standard]
+python-multipart
+peft
+accelerate
+
+# ============================================
+# GPU-only dependencies (Linux with CUDA)
+# These are needed for the VPT model only.
+# The local classifier works WITHOUT these.
+# ============================================
+# unsloth[colab-new]    # Requires triton (Linux-only GPU compiler)
+# bitsandbytes          # Requires CUDA (optional on Windows CPU)
+
+# ============================================
+# To install on Windows (classifier only):
+#   pip install torch torchvision transformers pillow fastapi "uvicorn[standard]" python-multipart peft accelerate
+#
+# To install on Linux with GPU (full VPT + classifier):
+#   pip install -r requirements.txt
+#   pip install "unsloth[colab-new]" bitsandbytes
+# ============================================
