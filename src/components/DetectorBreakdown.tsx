@@ -1,353 +1,189 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { BarChart2, CheckCircle, AlertCircle, AlertTriangle, Clock } from 'lucide-react';
 import { AnalysisResult } from '@/lib/types';
+import { BASE_WEIGHTS } from '@/lib/dynamic-weights';
 import { formatProcessingTime } from '@/lib/utils';
 
 interface DetectorBreakdownProps {
   result: AnalysisResult;
 }
 
+const STATUS_WORD: Record<string, string> = {
+  success: 'ok',
+  fallback: 'fallback',
+  error: 'failed',
+};
+
 export default function DetectorBreakdown({ result }: DetectorBreakdownProps) {
-  const detectors = [
+  const rows = [
     {
-      name: 'HuggingFace AI Detector',
-      shortName: 'HuggingFace',
-      data: result.detectors.huggingface,
+      name: 'HuggingFace classifier',
+      detail: 'Organika/sdxl-detector, run locally on the Python server',
+      read: result.detectors.huggingface,
       weight: result.fusion.huggingfaceWeight,
-      baseWeight: 0.6,
-      color: '#6366f1',
-      description: 'Pre-trained classifier for AI image detection',
+      baseWeight: BASE_WEIGHTS.huggingface,
     },
     {
-      name: 'Gemini Vision Analysis',
-      shortName: 'Gemini VLM',
-      data: result.detectors.visionLLM,
+      name: 'Gemini vision review',
+      detail: 'gemini-3-flash-preview, semantic read of the whole frame',
+      read: result.detectors.visionLLM,
       weight: result.fusion.visionLLMWeight,
-      baseWeight: 0.3,
-      color: '#8b5cf6',
-      description: 'Vision-language model for semantic analysis',
+      baseWeight: BASE_WEIGHTS.visionLLM,
     },
     {
-      name: 'DCT Frequency Analysis',
-      shortName: 'DCT Analysis',
-      data: result.detectors.dctAnalysis,
+      name: 'DCT spectra',
+      detail: '8×8 block frequencies measured in the browser',
+      read: result.detectors.dctAnalysis,
+      baseWeight: BASE_WEIGHTS.dct,
       weight: result.fusion.dctWeight,
-      baseWeight: 0.1,
-      color: '#a855f7',
-      description: 'Frequency domain analysis for AI fingerprints',
     },
   ];
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success':
-        return <CheckCircle size={14} color="#22c55e" />;
-      case 'fallback':
-        return <AlertTriangle size={14} color="#f59e0b" />;
-      case 'error':
-        return <AlertCircle size={14} color="#ef4444" />;
-      default:
-        return <AlertCircle size={14} color="#6b7280" />;
-    }
-  };
-
-  const getScoreColor = (score: number): string => {
-    if (score >= 0.7) return '#ef4444';
-    if (score >= 0.5) return '#f59e0b';
-    if (score >= 0.3) return '#eab308';
-    return '#22c55e';
-  };
-
   return (
-    <motion.div
-      className="detector-breakdown"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <div className="breakdown-header">
-        <h3>
-          <BarChart2 size={18} />
-          Detector Breakdown
-        </h3>
-      </div>
+    <div className="breakdown">
+      <p className="label">Where each score came from</p>
 
-      <div className="detectors-list">
-        {detectors.map((detector, index) => (
-          <motion.div
-            key={detector.name}
-            className="detector-card"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <div className="detector-header">
-              <div className="detector-title">
-                <span
-                  className="detector-dot"
-                  style={{ backgroundColor: detector.color }}
-                />
-                <span className="detector-name">{detector.shortName}</span>
-                {getStatusIcon(detector.data.status)}
-              </div>
-              <div className="detector-weight">
-                <span
-                  className={`weight-value ${detector.weight !== detector.baseWeight ? 'adjusted' : ''}`}
-                >
-                  {(detector.weight * 100).toFixed(0)}%
-                </span>
-                {detector.weight !== detector.baseWeight && (
-                  <span className="weight-base">
-                    (base: {(detector.baseWeight * 100).toFixed(0)}%)
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="detector-score">
-              <div className="score-bar-container">
-                <motion.div
-                  className="score-bar"
-                  style={{ backgroundColor: getScoreColor(detector.data.score) }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${detector.data.score * 100}%` }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                />
-              </div>
-              <span
-                className="score-value"
-                style={{ color: getScoreColor(detector.data.score) }}
-              >
-                {(detector.data.score * 100).toFixed(1)}%
+      <div className="rows">
+        {rows.map((row) => (
+          <div className="item" key={row.name}>
+            <div className="top">
+              <span className="name">{row.name}</span>
+              <span className={`status ${row.read.status}`}>
+                {STATUS_WORD[row.read.status] ?? row.read.status}
               </span>
             </div>
 
-            <div className="detector-meta">
-              <span className="detector-desc">{detector.description}</span>
-              <span className="detector-time">
-                <Clock size={12} />
-                {formatProcessingTime(detector.data.processingTime)}
+            <p className="detail">{row.detail}</p>
+
+            <div className="figures">
+              <span className="fig">
+                weight <b>{(row.weight * 100).toFixed(0)}%</b>
+                <em>of base {(row.baseWeight * 100).toFixed(0)}%</em>
+              </span>
+              <span className="fig">
+                took <b>{formatProcessingTime(row.read.processingTime)}</b>
+              </span>
+              <span className="fig">
+                self-reported <b>{(row.read.confidence * 100).toFixed(0)}%</b>
               </span>
             </div>
 
-            {detector.data.error && (
-              <div className="detector-error">
-                <AlertTriangle size={12} />
-                {detector.data.error}
-              </div>
-            )}
-          </motion.div>
+            {row.read.error && <p className="error">{row.read.error}</p>}
+          </div>
         ))}
       </div>
 
-      {/* Fusion Result */}
-      <div className="fusion-section">
-        <div className="fusion-header">
-          <span className="fusion-label">Weighted Fusion Result</span>
-          <span className="fusion-formula">
-            HF×{(result.fusion.huggingfaceWeight * 100).toFixed(0)}% +
-            VLM×{(result.fusion.visionLLMWeight * 100).toFixed(0)}% +
-            DCT×{(result.fusion.dctWeight * 100).toFixed(0)}%
-          </span>
+      <div className="fusion">
+        <p className="label">Fused score</p>
+        <div className="ro-row pair">
+          <span className="ro-name">Three weighted reads, before calibration</span>
+          <span className="ro-val">{result.fusion.finalScore.toFixed(2)}</span>
         </div>
-        <div className="fusion-score">
-          <div className="score-bar-container large">
-            <motion.div
-              className="score-bar gradient"
-              initial={{ width: 0 }}
-              animate={{ width: `${result.fusion.finalScore * 100}%` }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            />
-          </div>
-          <span className="score-value large">
-            {(result.fusion.finalScore * 100).toFixed(1)}%
-          </span>
+        <div className="ro-row pair">
+          <span className="ro-name">After calibration</span>
+          <span className="ro-val">{result.calibration.calibratedScore.toFixed(2)}</span>
         </div>
       </div>
 
       <style jsx>{`
-        .detector-breakdown {
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 20px;
-          padding: 24px;
+        .breakdown,
+        .fusion {
+          min-width: 0;
         }
 
-        .breakdown-header {
-          margin-bottom: 20px;
+        .fusion {
+          margin-top: 22px;
+          padding-top: 18px;
+          border-top: 1px solid var(--rule);
         }
 
-        .breakdown-header h3 {
+        .ro-row.pair {
+          grid-template-columns: minmax(0, 1fr) 56px;
+          gap: 10px;
+        }
+
+        .rows {
+          margin-top: 4px;
+        }
+
+        .item {
+          padding: 14px 0;
+          border-bottom: 1px solid var(--rule-soft);
+        }
+
+        .top {
           display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 1rem;
-          margin: 0;
-        }
-
-        .detectors-list {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          margin-bottom: 20px;
-        }
-
-        .detector-card {
-          padding: 14px;
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 14px;
-        }
-
-        .detector-header {
-          display: flex;
-          align-items: center;
+          align-items: baseline;
           justify-content: space-between;
-          margin-bottom: 8px;
+          gap: 10px;
         }
 
-        .detector-title {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .detector-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-        }
-
-        .detector-name {
+        .name {
+          font-size: 0.9375rem;
           font-weight: 500;
-          font-size: 0.85rem;
+          color: var(--ink);
         }
 
-        .detector-weight {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .weight-value {
-          font-size: 0.82rem;
-          color: var(--text-muted);
-        }
-
-        .weight-value.adjusted {
-          color: #818cf8;
-          font-weight: 600;
-        }
-
-        .weight-base {
-          font-size: 0.68rem;
-          color: rgba(255, 255, 255, 0.3);
-        }
-
-        .detector-score {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 8px;
-        }
-
-        .score-bar-container {
-          flex: 1;
-          height: 6px;
-          background: var(--glass-bg);
-          border-radius: 100px;
-          overflow: hidden;
-        }
-
-        .score-bar-container.large {
-          height: 10px;
-        }
-
-        .score-bar {
-          height: 100%;
-          border-radius: 100px;
-        }
-
-        .score-bar.gradient {
-          background: linear-gradient(90deg, #6366f1, #8b5cf6);
-        }
-
-        .score-value {
-          font-weight: 600;
-          font-size: 0.88rem;
-          min-width: 50px;
-          text-align: right;
-        }
-
-        .score-value.large {
-          font-size: 1.15rem;
-        }
-
-        .detector-meta {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-        }
-
-        .detector-desc {
-          font-size: 0.72rem;
-          color: rgba(255, 255, 255, 0.35);
-        }
-
-        .detector-time {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.72rem;
-          color: rgba(255, 255, 255, 0.3);
-        }
-
-        .detector-error {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-top: 8px;
-          padding: 6px 10px;
-          background: rgba(239, 68, 68, 0.08);
-          border: 1px solid rgba(239, 68, 68, 0.12);
-          border-radius: 8px;
-          font-size: 0.72rem;
-          color: #f87171;
-        }
-
-        .fusion-section {
-          padding-top: 16px;
-          border-top: 1px solid var(--glass-border);
-        }
-
-        .fusion-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 8px;
-        }
-
-        .fusion-label {
-          font-weight: 500;
-          font-size: 0.9rem;
-          color: rgba(255, 255, 255, 0.85);
-        }
-
-        .fusion-formula {
-          font-size: 0.68rem;
-          color: rgba(255, 255, 255, 0.3);
+        .status {
           font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--muted);
+          white-space: nowrap;
         }
 
-        .fusion-score {
+        .status.success {
+          color: var(--verified);
+        }
+
+        .status.fallback,
+        .status.error {
+          color: var(--flagged);
+        }
+
+        .detail {
+          margin: 3px 0 0;
+          font-size: 0.875rem;
+          line-height: 1.45;
+          color: var(--muted);
+        }
+
+        .figures {
           display: flex;
-          align-items: center;
-          gap: 12px;
+          flex-wrap: wrap;
+          gap: 4px 16px;
+          margin-top: 8px;
+        }
+
+        .fig {
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--muted);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .fig b {
+          color: var(--ink);
+          font-weight: 600;
+          margin-left: 3px;
+        }
+
+        .fig em {
+          font-style: normal;
+          margin-left: 4px;
+        }
+
+        .error {
+          margin: 8px 0 0;
+          padding: 7px 9px;
+          border-left: 2px solid var(--flagged);
+          background: var(--flagged-wash);
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          line-height: 1.4;
+          color: var(--ink);
+          overflow-wrap: anywhere;
         }
       `}</style>
-    </motion.div>
+    </div>
   );
 }

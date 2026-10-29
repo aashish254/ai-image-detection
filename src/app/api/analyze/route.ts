@@ -52,7 +52,10 @@ export async function POST(request: NextRequest) {
             const cachedResult = await getCachedResult(imageHash);
             if (cachedResult) {
                 console.log(`[Cache] Returning cached result for ${imageHash.substring(0, 8)}...`);
-                return NextResponse.json({ ...cachedResult, cached: true });
+                return NextResponse.json<AnalyzeResponse>({
+                    success: true,
+                    result: { ...cachedResult, cached: true },
+                });
             }
         }
 
@@ -558,6 +561,12 @@ export async function POST(request: NextRequest) {
             console.log(`[VPT] Server available: ${vptResult.serverAvailable}, Model loaded: ${vptResult.modelLoaded}`);
             console.log(`[VPT] Verdict: ${vptResult.verdict}, Bounding boxes: ${vptResult.boundingBoxes.length}`);
 
+            // Sentinel metadata is reported even when it returns no boxes.
+            forensicReport.vptBoundingBoxes = vptResult.boundingBoxes;
+            forensicReport.vptModelLoaded = vptResult.modelLoaded;
+            forensicReport.vptServerAvailable = vptResult.serverAvailable;
+            forensicReport.vptRawOutput = vptResult.rawOutput;
+
             // ================================================================
             // REGION-SPECIFIC DCT CROSS-VERIFICATION ("Second Opinion" Logic)
             // ================================================================
@@ -608,12 +617,6 @@ export async function POST(request: NextRequest) {
                         severity: confirmed.confidence > 0.7 ? 'high' : confirmed.confidence > 0.4 ? 'medium' : 'low',
                     });
                 }
-
-                // Store VPT metadata in forensic report
-                forensicReport.vptBoundingBoxes = vptResult.boundingBoxes;
-                forensicReport.vptModelLoaded = vptResult.modelLoaded;
-                forensicReport.vptServerAvailable = vptResult.serverAvailable;
-                forensicReport.vptRawOutput = vptResult.rawOutput;
 
                 // Only boost confidence if cross-verified artifacts confirm AI generation
                 if (vptResult.verdict === 'AI_GENERATED' && vptResult.modelLoaded && crossCheckResult.confirmed.length > 0) {
@@ -806,33 +809,32 @@ export async function POST(request: NextRequest) {
 export async function GET() {
     return NextResponse.json({
         status: 'ok',
-        version: '3.0.0',
+        version: '2.0.0',
         novelFeatures: [
-            // NEW (2026)
             'Frequency-Spatial Fusion Network (FSFN)',
-            'Explainable AI Detection (XAI)',
-            'Ensemble Uncertainty Quantification (EUQ)',
-            'GAN Fingerprint Identification (GFI)',  // NEW - identifies which AI made the image
-            // Original
-            'Disagreement-Aware Confidence Calibration (DACC)',
+            'Explainable Forensic Reports (XAI)',
+            'Epistemic Uncertainty Quantification (EUQ)',
+            'GAN Fingerprint Identification (GFI)',
+            'Dynamic Adaptive Confidence Calibration (DACC)',
             'Spatial Artifact Mapping (SAM)',
             'Dynamic Reliability-Weighted Fusion (DRWF)',
         ],
         detectors: {
             huggingface: {
-                model: 'umm-maybe/AI-image-detector',
-                weight: '15% (base)',
-                status: process.env.HUGGINGFACE_API_TOKEN ? 'configured' : 'demo_mode',
+                model: 'Organika/sdxl-detector (local ViT classifier)',
+                endpoint: process.env.VPT_SERVER_URL || 'http://localhost:8100',
+                weight: '30% (base)',
+                status: 'local_classifier',
             },
             visionLLM: {
                 provider: 'Google Gemini',
-                model: 'gemini-2.5-flash',
-                weight: '67% (base)',
+                model: 'gemini-3-flash-preview',
+                weight: '55% (base)',
                 status: process.env.GOOGLE_GEMINI_API_KEY ? 'configured' : 'demo_mode',
             },
             dct: {
                 method: 'Frequency Domain Analysis',
-                weight: '18% (base)',
+                weight: '15% (base)',
                 status: 'active',
             },
             fsfn: {

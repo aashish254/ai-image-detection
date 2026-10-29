@@ -1,18 +1,20 @@
 /**
- * ADVANCED SPECTRAL VISUALIZER
- * Shows FFT spectrum, frequency bands, and AI detection metrics
+ * Frequency-domain read, measured from the file's own pixels.
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Activity, Radar, Zap, AlertCircle, TrendingUp, Waves } from 'lucide-react';
+import { pct } from '@/lib/report';
+import MeasureRow from './MeasureRow';
 import { performFFTAnalysis, FFTAnalysisResult } from '@/lib/fft-analysis';
 
 interface SpectralVisualizerProps {
     imageBase64: string;
 }
+
+const PLOT_WIDTH = 600;
+const PLOT_HEIGHT = 140;
 
 export default function SpectralVisualizer({ imageBase64 }: SpectralVisualizerProps) {
     const [fftData, setFFTData] = useState<FFTAnalysisResult | null>(null);
@@ -20,525 +22,206 @@ export default function SpectralVisualizer({ imageBase64 }: SpectralVisualizerPr
 
     useEffect(() => {
         setIsAnalyzing(true);
-        setTimeout(() => {
-            const result = performFFTAnalysis(imageBase64);
-            setFFTData(result);
+        const timer = setTimeout(() => {
+            setFFTData(performFFTAnalysis(imageBase64));
             setIsAnalyzing(false);
         }, 500);
+        return () => clearTimeout(timer);
     }, [imageBase64]);
 
-    if (isAnalyzing || !fftData) {
+    if (isAnalyzing) {
+        return <p className="dp-none">Measuring the frequency spectrum of this file…</p>;
+    }
+
+    if (!fftData) {
         return (
-            <div className="spectral-loading">
-                <div className="loading-spinner"></div>
-                <p>Performing FFT analysis...</p>
-            </div>
+            <p className="dp-none">
+                The frequency read did not complete for this file. Every other tab still shows what
+                it measured.
+            </p>
         );
     }
 
-    const maxSpectrum = Math.max(...fftData.spectrumData, 0.01);
+    // Bin 0 is average brightness rather than a frequency; leaving it out of the
+    // plot keeps it from flattening every other bin.
+    const total = fftData.spectrumData.length;
+    const bins = fftData.spectrumData.slice(1);
+    const maxMagnitude = Math.max(...bins, 0.01);
+    const binWidth = PLOT_WIDTH / total;
+    const peaks = fftData.peakFrequencies.slice(0, 5);
 
     return (
-        <div className="spectral-visualizer">
-            {/* Header */}
-            <div className="spectral-header">
-                <div className="header-left">
-                    <Waves size={24} />
-                    <div>
-                        <h3>Frequency Domain Analysis</h3>
-                        <p>Real FFT/DFT spectral decomposition</p>
-                    </div>
-                </div>
-                <div className="ai-score-badge" data-level={fftData.aiLikelihood > 0.7 ? 'high' : fftData.aiLikelihood > 0.4 ? 'medium' : 'low'}>
-                    AI Likelihood: {(fftData.aiLikelihood * 100).toFixed(1)}%
-                </div>
-            </div>
+        <div className="doc-entry spectral-read">
+            <span className="ab">FFT</span>
+            <div>
+                <h3>Frequency spectrum of the file itself</h3>
+                <p>
+                    Computed here in your browser from the pixels you uploaded — no model and no
+                    network call. Generated pictures tend to lose energy at the high end and to
+                    repeat themselves at particular frequencies, which is what the plot below shows.
+                </p>
 
-            {/* Main Spectrum Graph */}
-            <div className="spectrum-container">
-                <div className="spectrum-graph">
-                    <svg viewBox="0 0 500 200" preserveAspectRatio="none">
-                        {/* Grid lines */}
-                        <defs>
-                            <linearGradient id="spectrumGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.8" />
-                                <stop offset="50%" stopColor="#6366f1" stopOpacity="0.5" />
-                                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
-                            </linearGradient>
-                        </defs>
-
-                        {/* Horizontal grid */}
-                        {[0, 0.25, 0.5, 0.75, 1].map((y, i) => (
-                            <line
-                                key={`h-${i}`}
-                                x1="0"
-                                y1={y * 200}
-                                x2="500"
-                                y2={y * 200}
-                                stroke="rgba(255,255,255,0.1)"
-                                strokeWidth="1"
-                            />
-                        ))}
-
-                        {/* Spectrum bars */}
-                        {fftData.spectrumData.map((magnitude, index) => {
-                            const x = (index / fftData.spectrumData.length) * 500;
-                            const barWidth = 500 / fftData.spectrumData.length;
-                            const height = (magnitude / maxSpectrum) * 200;
-
+                <figure className="dp-fig">
+                    <figcaption>
+                        Amplitude by frequency across {total} bins, with the first left off because
+                        it is average brightness rather than a frequency. Left is the coarsest
+                        detail, right the finest.
+                        {peaks.length > 0
+                            ? ' Marks sit on bins that peaked outright.'
+                            : ' No bin peaked outright, so nothing is marked.'}
+                    </figcaption>
+                    <svg
+                        className="spectrum"
+                        viewBox={`0 0 ${PLOT_WIDTH} ${PLOT_HEIGHT}`}
+                        preserveAspectRatio="none"
+                        role="img"
+                        aria-label="Frequency spectrum"
+                    >
+                        <line
+                            x1="0"
+                            y1={PLOT_HEIGHT - 0.5}
+                            x2={PLOT_WIDTH}
+                            y2={PLOT_HEIGHT - 0.5}
+                            className="baseline"
+                        />
+                        {bins.map((magnitude, index) => {
+                            const height = (magnitude / maxMagnitude) * (PLOT_HEIGHT - 8);
                             return (
                                 <rect
                                     key={index}
-                                    x={x}
-                                    y={200 - height}
-                                    width={Math.max(barWidth - 1, 1)}
+                                    x={(index + 1) * binWidth}
+                                    y={PLOT_HEIGHT - height}
+                                    width={Math.max(binWidth - 0.6, 0.6)}
                                     height={height}
-                                    fill="url(#spectrumGradient)"
-                                    opacity={0.8}
+                                    className="bin"
                                 />
                             );
                         })}
-
-                        {/* Peak markers */}
-                        {fftData.peakFrequencies.slice(0, 5).map((peak, i) => {
-                            const x = peak.freq * 500;
-                            const y = 200 - (peak.magnitude / maxSpectrum) * 200;
-
+                        {peaks.map((peak, index) => {
+                            const x = peak.freq * PLOT_WIDTH;
+                            const y =
+                                PLOT_HEIGHT - (peak.magnitude / maxMagnitude) * (PLOT_HEIGHT - 8);
                             return (
-                                <g key={`peak-${i}`}>
-                                    <circle cx={x} cy={y} r="4" fill="#ef4444" />
-                                    <line
-                                        x1={x}
-                                        y1={y}
-                                        x2={x}
-                                        y2="200"
-                                        stroke="#ef4444"
-                                        strokeWidth="1"
-                                        strokeDasharray="3,3"
-                                    />
-                                </g>
+                                <line
+                                    key={`peak-${index}`}
+                                    x1={x}
+                                    y1={y - 5}
+                                    x2={x}
+                                    y2={PLOT_HEIGHT}
+                                    className="peak-mark"
+                                />
                             );
                         })}
                     </svg>
+                    <div className="spectrum-scale">
+                        <span>coarsest</span>
+                        <span>coarse</span>
+                        <span>mid</span>
+                        <span>fine</span>
+                        <span>finest</span>
+                    </div>
+                </figure>
+
+                <p className="dp-sub">Where the energy sits</p>
+                <div className="ro-rows">
+                    <MeasureRow name="Low frequencies" value={fftData.frequencyBands.low} tone="neutral" />
+                    <MeasureRow name="Mid frequencies" value={fftData.frequencyBands.mid} tone="neutral" />
+                    <MeasureRow name="High frequencies" value={fftData.frequencyBands.high} tone="neutral" />
+                    <MeasureRow name="Finest detail" value={fftData.frequencyBands.veryHigh} tone="neutral" />
                 </div>
 
-                <div className="spectrum-labels">
-                    <span>DC (0 Hz)</span>
-                    <span>Low</span>
-                    <span>Mid</span>
-                    <span>High</span>
-                    <span>Nyquist</span>
+                <p className="dp-sub">What the shape of that curve implies</p>
+                <div className="ro-rows">
+                    <MeasureRow
+                        name="Smoothness — thin high end"
+                        value={fftData.smoothnessScore}
+                        tone="neutral"
+                    />
+                    <MeasureRow
+                        name="Periodicity — repeated bands"
+                        value={fftData.periodicityScore}
+                        tone="neutral"
+                    />
+                    <MeasureRow
+                        name="Spread across bands"
+                        value={fftData.spectralEntropy}
+                        tone="neutral"
+                    />
+                    <MeasureRow
+                        lead
+                        name="This read alone says synthetic"
+                        value={fftData.aiLikelihood}
+                    />
                 </div>
-            </div>
 
-            {/* Frequency Bands */}
-            <div className="frequency-bands">
-                <h4><Radar size={18} /> Frequency Band Distribution</h4>
-                <div className="bands-grid">
-                    <div className="band-item">
-                        <div className="band-header">
-                            <span className="band-label">Low Frequency</span>
-                            <span className="band-value">{(fftData.frequencyBands.low * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="band-bar">
-                            <motion.div
-                                className="band-fill low"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${fftData.frequencyBands.low * 100}%` }}
-                                transition={{ duration: 0.8, delay: 0.1 }}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="band-item">
-                        <div className="band-header">
-                            <span className="band-label">Mid Frequency</span>
-                            <span className="band-value">{(fftData.frequencyBands.mid * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="band-bar">
-                            <motion.div
-                                className="band-fill mid"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${fftData.frequencyBands.mid * 100}%` }}
-                                transition={{ duration: 0.8, delay: 0.2 }}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="band-item">
-                        <div className="band-header">
-                            <span className="band-label">High Frequency</span>
-                            <span className="band-value">{(fftData.frequencyBands.high * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="band-bar">
-                            <motion.div
-                                className="band-fill high"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${fftData.frequencyBands.high * 100}%` }}
-                                transition={{ duration: 0.8, delay: 0.3 }}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="band-item">
-                        <div className="band-header">
-                            <span className="band-label">Very High Frequency</span>
-                            <span className="band-value">{(fftData.frequencyBands.veryHigh * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="band-bar">
-                            <motion.div
-                                className="band-fill very-high"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${fftData.frequencyBands.veryHigh * 100}%` }}
-                                transition={{ duration: 0.8, delay: 0.4 }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Metrics Grid */}
-            <div className="metrics-grid">
-                <motion.div
-                    className="metric-card"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                >
-                    <Zap size={20} />
-                    <div className="metric-content">
-                        <span className="metric-label">Periodicity</span>
-                        <span className="metric-value">{(fftData.periodicityScore * 100).toFixed(1)}%</span>
-                    </div>
-                    <div className="metric-bar" style={{ '--value': `${fftData.periodicityScore * 100}%` } as React.CSSProperties}>
-                        <div className="metric-bar-fill"></div>
-                    </div>
-                </motion.div>
-
-                <motion.div
-                    className="metric-card"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                >
-                    <Activity size={20} />
-                    <div className="metric-content">
-                        <span className="metric-label">Smoothness</span>
-                        <span className="metric-value">{(fftData.smoothnessScore * 100).toFixed(1)}%</span>
-                    </div>
-                    <div className="metric-bar" style={{ '--value': `${fftData.smoothnessScore * 100}%` } as React.CSSProperties}>
-                        <div className="metric-bar-fill"></div>
-                    </div>
-                </motion.div>
-
-                <motion.div
-                    className="metric-card"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                >
-                    <TrendingUp size={20} />
-                    <div className="metric-content">
-                        <span className="metric-label">Spectral Entropy</span>
-                        <span className="metric-value">{(fftData.spectralEntropy * 100).toFixed(1)}%</span>
-                    </div>
-                    <div className="metric-bar" style={{ '--value': `${fftData.spectralEntropy * 100}%` } as React.CSSProperties}>
-                        <div className="metric-bar-fill"></div>
-                    </div>
-                </motion.div>
-            </div>
-
-            {/* Peak Frequencies */}
-            {fftData.peakFrequencies.length > 0 && (
-                <div className="peak-frequencies">
-                    <h4><AlertCircle size={18} /> Detected Peaks (Potential AI Signatures)</h4>
-                    <div className="peaks-list">
-                        {fftData.peakFrequencies.slice(0, 5).map((peak, i) => (
-                            <motion.div
-                                key={i}
-                                className="peak-item"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.5 + i * 0.1 }}
-                            >
-                                <div className="peak-dot"></div>
-                                <div className="peak-info">
-                                    <span className="peak-freq">Frequency: {(peak.freq * 100).toFixed(1)}%</span>
-                                    <span className="peak-mag">Magnitude: {(peak.magnitude * 100).toFixed(1)}%</span>
+                {peaks.length > 0 ? (
+                    <>
+                        <p className="dp-sub">Peaked bins</p>
+                        <div className="doc-fields">
+                            {peaks.map((peak, index) => (
+                                <div key={index}>
+                                    <span className="fl">Peak {index + 1}</span>
+                                    <span className="fv dim">
+                                        at {pct(peak.freq, 1)} of the range · amplitude{' '}
+                                        {pct(peak.magnitude, 1)}
+                                    </span>
                                 </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            )}
+                            ))}
+                        </div>
+                        <p className="dp-note">
+                            A bright peak means the file repeats something at one rate. Fabricated
+                            grids and upscaled textures do that; a photograph usually does not.
+                            One peak on its own is not a finding — it is read together with the rest.
+                        </p>
+                    </>
+                ) : (
+                    <p className="dp-note">
+                        No bin rose clearly above its neighbours, so this curve carries no repeated
+                        structure to report.
+                    </p>
+                )}
+            </div>
 
             <style jsx>{`
-                .spectral-visualizer {
-                    background: var(--glass-bg);
-                    border: 1px solid var(--glass-border);
-                    border-radius: var(--radius-lg);
-                    padding: var(--space-xl);
+                .spectral-read {
+                    min-width: 0;
                 }
 
-                .spectral-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: var(--space-xl);
-                }
-
-                .header-left {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--space-md);
-                }
-
-                .header-left h3 {
-                    margin: 0;
-                    font-size: 1.2rem;
-                    color: var(--text-primary);
-                }
-
-                .header-left p {
-                    margin: 0;
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                }
-
-                .ai-score-badge {
-                    padding: 0.5rem 1rem;
-                    border-radius: var(--radius-md);
-                    font-weight: 600;
-                    font-size: 0.9rem;
-                }
-
-                .ai-score-badge[data-level="high"] {
-                    background: rgba(239, 68, 68, 0.2);
-                    color: #ef4444;
-                    border: 1px solid #ef4444;
-                }
-
-                .ai-score-badge[data-level="medium"] {
-                    background: rgba(245, 158, 11, 0.2);
-                    color: #f59e0b;
-                    border: 1px solid #f59e0b;
-                }
-
-                .ai-score-badge[data-level="low"] {
-                    background: rgba(34, 197, 94, 0.2);
-                    color: #22c55e;
-                    border: 1px solid #22c55e;
-                }
-
-                .spectrum-container {
-                    margin-bottom: var(--space-xl);
-                }
-
-                .spectrum-graph {
+                .spectrum {
+                    display: block;
                     width: 100%;
-                    height: 200px;
-                    background: rgba(15, 23, 42, 0.5);
-                    border-radius: var(--radius-md);
-                    padding: var(--space-md);
-                    position: relative;
+                    height: 140px;
+                    border: 1px solid var(--rule);
+                    background: var(--sheet-sunk);
                 }
 
-                .spectrum-graph svg {
-                    width: 100%;
-                    height: 100%;
+                .spectrum .baseline {
+                    stroke: var(--rule-strong);
+                    stroke-width: 1;
                 }
 
-                .spectrum-labels {
+                .spectrum .bin {
+                    fill: var(--graphite);
+                }
+
+                .spectrum .peak-mark {
+                    stroke: var(--ink);
+                    stroke-width: 1.5;
+                }
+
+                .spectrum-scale {
                     display: flex;
                     justify-content: space-between;
-                    margin-top: var(--space-sm);
-                    font-size: 0.75rem;
-                    color: var(--text-secondary);
+                    margin-top: 7px;
+                    font-family: var(--font-mono);
+                    font-size: 0.875rem;
+                    color: var(--muted);
                 }
 
-                .frequency-bands {
-                    margin: var(--space-xl) 0;
-                }
-
-                .frequency-bands h4 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: var(--space-md);
-                    color: var(--text-primary);
-                }
-
-                .bands-grid {
-                    display: grid;
-                    gap: var(--space-md);
-                }
-
-                .band-item {
-                    background: var(--bg-secondary);
-                    padding: var(--space-md);
-                    border-radius: var(--radius-md);
-                }
-
-                .band-header {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 0.5rem;
-                    font-size: 0.9rem;
-                }
-
-                .band-label {
-                    color: var(--text-secondary);
-                }
-
-                .band-value {
-                    color: var(--text-primary);
-                    font-weight: 600;
-                }
-
-                .band-bar {
-                    height: 8px;
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: 4px;
-                    overflow: hidden;
-                }
-
-                .band-fill {
-                    height: 100%;
-                    border-radius: 4px;
-                }
-
-                .band-fill.low {
-                    background: linear-gradient(90deg, #22c55e, #10b981);
-                }
-
-                .band-fill.mid {
-                    background: linear-gradient(90deg, #3b82f6, #2563eb);
-                }
-
-                .band-fill.high {
-                    background: linear-gradient(90deg, #f59e0b, #d97706);
-                }
-
-                .band-fill.very-high {
-                    background: linear-gradient(90deg, #ef4444, #dc2626);
-                }
-
-                .metrics-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: var(--space-md);
-                    margin: var(--space-xl) 0;
-                }
-
-                .metric-card {
-                    background: var(--bg-secondary);
-                    padding: var(--space-md);
-                    border-radius: var(--radius-md);
-                    display: flex;
-                    flex-direction: column;
-                    gap: var(--space-sm);
-                }
-
-                .metric-content {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-
-                .metric-label {
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                }
-
-                .metric-value {
-                    font-size: 1.1rem;
-                    font-weight: 700;
-                    color: var(--primary-400);
-                }
-
-                .metric-bar {
-                    height: 6px;
-                    background: rgba(255, 255, 255, 0.1);
-                    border-radius: 3px;
-                    overflow: hidden;
-                    position: relative;
-                }
-
-                .metric-bar-fill {
-                    height: 100%;
-                    width: var(--value);
-                    background: linear-gradient(90deg, #8b5cf6, #6366f1);
-                    border-radius: 3px;
-                    transition: width 1s ease;
-                }
-
-                .peak-frequencies h4 {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    margin-bottom: var(--space-md);
-                    color: var(--text-primary);
-                }
-
-                .peaks-list {
-                    display: grid;
-                    gap: var(--space-sm);
-                }
-
-                .peak-item {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--space-md);
-                    padding: var(--space-sm) var(--space-md);
-                    background: var(--bg-secondary);
-                    border-radius: var(--radius-md);
-                    border-left: 3px solid #ef4444;
-                }
-
-                .peak-dot {
-                    width: 10px;
-                    height: 10px;
-                    background: #ef4444;
-                    border-radius: 50%;
-                    box-shadow: 0 0 10px #ef4444;
-                }
-
-                .peak-info {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0.25rem;
-                    font-size: 0.85rem;
-                }
-
-                .peak-freq {
-                    color: var(--text-primary);
-                    font-weight: 600;
-                }
-
-                .peak-mag {
-                    color: var(--text-secondary);
-                }
-
-                .spectral-loading {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    padding: var(--space-2xl);
-                    gap: var(--space-md);
-                }
-
-                .loading-spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 4px solid rgba(139, 92, 246, 0.3);
-                    border-top-color: #8b5cf6;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
+                @media (max-width: 620px) {
+                    .spectrum {
+                        height: 108px;
+                    }
                 }
             `}</style>
         </div>

@@ -11,7 +11,7 @@
  * 5. Detect artifacts like lighting inconsistencies, texture issues, etc.
  * 
  * Features:
- * - Automatic model fallback: gemini-2.5-flash → gemini-2.5-flash-lite → gemini-3-flash
+ * - Automatic model fallback: gemini-3-flash-preview → gemini-3.1-flash-lite → gemini-2.5-flash
  * - Retry with exponential backoff for transient rate limits
  * - Graceful degradation when all models are quota-exhausted
  * 
@@ -35,8 +35,10 @@ export interface ExtendedVisionLLMResult extends VisionLLMResult {
 }
 
 // Gemini API configuration
-const GEMINI_API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash'];
+const GEMINI_API_KEY = process.env.GOOGLE_GEMINI_API_KEY ?? '';
+// gemini-2.5-flash is retired for keys issued after it was withdrawn, but stays last
+// so a pre-existing key still resolves when the current names are quota-exhausted.
+const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
 const MAX_RETRIES = 2;
 const BASE_RETRY_DELAY_MS = 2000;
 
@@ -137,9 +139,12 @@ async function callGeminiWithRetry(
         }
 
         try {
-            const response = await fetch(`${apiUrl}?key=${GEMINI_API_KEY}`, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': GEMINI_API_KEY,
+                },
                 body: JSON.stringify(requestBody),
             });
 

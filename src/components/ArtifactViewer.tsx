@@ -1,311 +1,348 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Artifact } from '@/lib/types';
-import { getSeverityColor } from '@/lib/utils';
-import { ZoomIn, ZoomOut, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { readable } from '@/lib/report';
+
+interface Mark {
+  xmin: number;
+  ymin: number;
+  xmax: number;
+  ymax: number;
+  label: string;
+  description: string;
+  confidence: number;
+}
 
 interface ArtifactViewerProps {
   imageUrl: string;
+  marks: Mark[];
   artifacts: Artifact[];
 }
 
-export default function ArtifactViewer({ imageUrl, artifacts }: ArtifactViewerProps) {
-  const [zoom, setZoom] = useState(1);
-  const [showArtifacts, setShowArtifacts] = useState(true);
-  const [selectedArtifact, setSelectedArtifact] = useState<string | null>(null);
+/** Same thresholds the sentinel itself uses when it grades a box. */
+const confidenceTone = (confidence: number): 'high' | 'medium' | 'low' =>
+  confidence > 0.7 ? 'high' : confidence > 0.4 ? 'medium' : 'low';
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 3));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.5));
-  const handleReset = () => setZoom(1);
+const SEVERITY_WORD: Record<'high' | 'medium' | 'low', string> = {
+  high: 'strong',
+  medium: 'moderate',
+  low: 'weak',
+};
+
+export default function ArtifactViewer({ imageUrl, marks, artifacts }: ArtifactViewerProps) {
+  const [zoom, setZoom] = useState(1);
+  const [showMarks, setShowMarks] = useState(true);
+  const [selected, setSelected] = useState<number | null>(null);
+
+  const toggle = (index: number) => setSelected(selected === index ? null : index);
 
   return (
-    <div className="viewer-container">
-      {/* Image Viewer */}
-      <div className="image-viewport">
-        <div
-          className="image-wrapper"
-          style={{ transform: `scale(${zoom})` }}
-        >
-          <img src={imageUrl} alt="Analyzed image" className="analyzed-image" />
+    <div className="viewer">
+      <p className="label">Specimen with the regions the sentinel boxed</p>
 
-          {/* Artifact Overlays */}
-          {showArtifacts && artifacts.filter(a => a.location).map((artifact) => (
-            <motion.div
-              key={artifact.id}
-              className={`artifact-marker ${selectedArtifact === artifact.id ? 'selected' : ''}`}
-              style={{
-                left: `${artifact.location!.x}%`,
-                top: `${artifact.location!.y}%`,
-                width: `${artifact.location!.width}%`,
-                height: `${artifact.location!.height}%`,
-                borderColor: getSeverityColor(artifact.severity),
-              }}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              onClick={() => setSelectedArtifact(
-                selectedArtifact === artifact.id ? null : artifact.id
-              )}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="viewer-controls">
-        <div className="control-group">
-          <button
-            className="control-btn"
-            onClick={handleZoomOut}
-            disabled={zoom <= 0.5}
-            aria-label="Zoom out"
-          >
-            <ZoomOut size={18} />
-          </button>
-          <span className="zoom-level">{Math.round(zoom * 100)}%</span>
-          <button
-            className="control-btn"
-            onClick={handleZoomIn}
-            disabled={zoom >= 3}
-            aria-label="Zoom in"
-          >
-            <ZoomIn size={18} />
-          </button>
-          <button
-            className="control-btn"
-            onClick={handleReset}
-            aria-label="Reset zoom"
-          >
-            <RotateCcw size={18} />
-          </button>
-        </div>
-
-        <button
-          className={`control-btn toggle-btn ${showArtifacts ? 'active' : ''}`}
-          onClick={() => setShowArtifacts(!showArtifacts)}
-        >
-          {showArtifacts ? <Eye size={18} /> : <EyeOff size={18} />}
-          <span>{showArtifacts ? 'Hide' : 'Show'} Artifacts</span>
-        </button>
-      </div>
-
-      {/* Artifacts List */}
-      {artifacts.length > 0 && (
-        <div className="artifacts-list">
-          <h4>Detected Artifacts ({artifacts.length})</h4>
-          <div className="artifacts-grid">
-            {artifacts.map((artifact) => (
-              <motion.div
-                key={artifact.id}
-                className={`artifact-item ${selectedArtifact === artifact.id ? 'selected' : ''}`}
-                onClick={() => setSelectedArtifact(
-                  selectedArtifact === artifact.id ? null : artifact.id
-                )}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <div className="artifact-header">
-                  <span
-                    className="artifact-severity"
-                    style={{ backgroundColor: getSeverityColor(artifact.severity) }}
-                  />
-                  <span className="artifact-type">{formatArtifactType(artifact.type)}</span>
-                </div>
-                <p className="artifact-description">{artifact.description}</p>
-              </motion.div>
-            ))}
+      <div className="frame">
+        <div className="viewport">
+          <div className="plate" style={{ transform: `scale(${zoom})` }}>
+            <img src={imageUrl} alt="Analysed image with the regions the sentinel boxed" />
+            {showMarks &&
+              marks.map((mark, index) => (
+                <span
+                  key={`${mark.label}-${index}`}
+                  className={`mark ${confidenceTone(mark.confidence)} ${
+                    selected === index ? 'on' : ''
+                  }`}
+                  style={{
+                    left: `${mark.xmin * 100}%`,
+                    top: `${mark.ymin * 100}%`,
+                    width: `${(mark.xmax - mark.xmin) * 100}%`,
+                    height: `${(mark.ymax - mark.ymin) * 100}%`,
+                  }}
+                  onClick={() => toggle(index)}
+                />
+              ))}
           </div>
         </div>
-      )}
 
-      {artifacts.length === 0 && (
-        <div className="no-artifacts">
-          <p>No specific visual artifacts detected with spatial coordinates.</p>
+        <div className="bar">
+          <div className="group">
+            <button
+              className="ctl"
+              onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+              disabled={zoom <= 0.5}
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <span className="zoom">{Math.round(zoom * 100)}%</span>
+            <button
+              className="ctl"
+              onClick={() => setZoom((z) => Math.min(z + 0.25, 3))}
+              disabled={zoom >= 3}
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <button className="ctl" onClick={() => setZoom(1)} aria-label="Reset zoom">
+              1:1
+            </button>
+          </div>
+
+          {marks.length > 0 && (
+            <button
+              className="ctl text"
+              aria-pressed={showMarks}
+              onClick={() => setShowMarks((s) => !s)}
+            >
+              {showMarks ? 'Hide boxes' : 'Show boxes'}
+            </button>
+          )}
         </div>
+      </div>
+
+      {marks.length > 0 ? (
+        <div className="list">
+          {marks.map((mark, index) => (
+            <button
+              key={`${mark.label}-${index}`}
+              className={`row ${selected === index ? 'on' : ''}`}
+              onClick={() => toggle(index)}
+            >
+              <span className={`sev ${confidenceTone(mark.confidence)}`}>
+                {SEVERITY_WORD[confidenceTone(mark.confidence)]}
+              </span>
+              <span className="what">
+                <b>{readable(mark.label)}</b>
+                <p>{mark.description}</p>
+              </span>
+              <span className="where">
+                {Math.round(mark.xmin * 100)}–{Math.round(mark.xmax * 100)}×
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <p className="none">
+            Nothing came back with a box around it, so the image is unmarked. The findings below
+            describe the whole frame.
+          </p>
+
+          {artifacts.length > 0 && (
+            <div className="list">
+              {artifacts.map((artifact) => (
+                <div className="row still" key={artifact.id}>
+                  <span className={`sev ${artifact.severity}`}>
+                    {SEVERITY_WORD[artifact.severity]}
+                  </span>
+                  <span className="what">
+                    <b>{readable(artifact.type)}</b>
+                    <p>{artifact.description}</p>
+                  </span>
+                  <span className="where">{artifact.region ?? 'whole frame'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <style jsx>{`
-        .viewer-container {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-md);
+        .viewer {
+          min-width: 0;
         }
 
-        .image-viewport {
-          position: relative;
-          max-height: 500px;
+        .frame {
+          margin-top: 12px;
+          border: 1px solid var(--rule);
+          background: var(--sheet-sunk);
+        }
+
+        .viewport {
+          max-height: 460px;
           overflow: auto;
-          border-radius: var(--radius-md);
-          background: var(--bg-tertiary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
-        .image-wrapper {
+        .plate {
           position: relative;
-          transition: transform 0.3s ease;
-          transform-origin: center center;
-          min-height: 300px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          display: inline-block;
+          transition: transform var(--transition-normal);
         }
 
-        .analyzed-image {
-          max-width: 100%;
-          max-height: 500px;
-          height: auto;
-          width: auto;
+        .plate img {
           display: block;
-          object-fit: contain;
+          max-width: 100%;
+          max-height: 460px;
+          height: auto;
         }
 
-        .artifact-marker {
+        .mark {
           position: absolute;
-          border: 2px solid;
-          border-radius: var(--radius-sm);
-          background: rgba(255, 255, 255, 0.1);
+          display: block;
+          border: 1px solid;
           cursor: pointer;
-          transition: all var(--transition-fast);
         }
 
-        .artifact-marker:hover,
-        .artifact-marker.selected {
-          background: rgba(255, 255, 255, 0.2);
-          box-shadow: 0 0 10px currentColor;
+        .mark.high {
+          border-color: var(--flagged);
+          background: color-mix(in srgb, var(--flagged) 14%, transparent);
         }
 
-        .viewer-controls {
+        .mark.medium {
+          border-color: var(--caution);
+          background: color-mix(in srgb, var(--caution) 14%, transparent);
+        }
+
+        .mark.low {
+          border-color: var(--rule-strong);
+          background: color-mix(in srgb, var(--rule-strong) 14%, transparent);
+        }
+
+        .mark.on {
+          border-width: 2px;
+        }
+
+        .bar {
           display: flex;
+          align-items: center;
           justify-content: space-between;
-          align-items: center;
-          padding: var(--space-sm);
-          background: var(--glass-bg);
-          border-radius: var(--radius-md);
+          gap: 12px;
+          flex-wrap: wrap;
+          padding: 9px 12px;
+          border-top: 1px solid var(--rule);
+          background: var(--sheet);
         }
 
-        .control-group {
+        .group {
           display: flex;
           align-items: center;
-          gap: var(--space-sm);
+          gap: 6px;
         }
 
-        .control-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: var(--space-xs);
-          padding: var(--space-sm);
-          background: var(--bg-tertiary);
-          border: 1px solid var(--glass-border);
+        .ctl {
+          padding: 5px 10px;
+          background: transparent;
+          border: 1px solid var(--rule);
           border-radius: var(--radius-sm);
-          color: var(--text-secondary);
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          line-height: 1.3;
+          color: var(--graphite);
           cursor: pointer;
-          transition: all var(--transition-fast);
+          transition: color var(--transition-fast), border-color var(--transition-fast);
         }
 
-        .control-btn:hover:not(:disabled) {
-          background: var(--primary-900);
-          color: var(--primary-400);
-          border-color: var(--primary-700);
+        .ctl:hover:not(:disabled) {
+          color: var(--ink);
+          border-color: var(--rule-strong);
         }
 
-        .control-btn:disabled {
-          opacity: 0.5;
+        .ctl:disabled {
+          color: var(--muted);
+          opacity: 0.55;
           cursor: not-allowed;
         }
 
-        .toggle-btn {
-          padding: var(--space-sm) var(--space-md);
+        .ctl:focus-visible {
+          outline: 2px solid var(--focus-ring);
+          outline-offset: 2px;
         }
 
-        .toggle-btn.active {
-          background: var(--primary-900);
-          color: var(--primary-400);
-          border-color: var(--primary-700);
-        }
-
-        .zoom-level {
-          min-width: 50px;
+        .zoom {
+          min-width: 46px;
           text-align: center;
-          font-size: 0.85rem;
-          color: var(--text-muted);
           font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--muted);
+          font-variant-numeric: tabular-nums;
         }
 
-        .artifacts-list {
-          padding-top: var(--space-md);
-          border-top: 1px solid var(--glass-border);
+        .list {
+          margin-top: 18px;
+          border-top: 1px solid var(--rule);
         }
 
-        .artifacts-list h4 {
-          font-size: 0.85rem;
-          color: var(--text-muted);
-          margin-bottom: var(--space-md);
-        }
-
-        .artifacts-grid {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-sm);
-          max-height: 200px;
-          overflow-y: auto;
-        }
-
-        .artifact-item {
-          padding: var(--space-sm) var(--space-md);
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: var(--radius-sm);
+        .row {
+          display: grid;
+          grid-template-columns: 78px minmax(0, 1fr) 92px;
+          align-items: baseline;
+          gap: 14px;
+          width: 100%;
+          padding: 11px 2px;
+          background: none;
+          border: 0;
+          border-bottom: 1px solid var(--rule-soft);
+          text-align: left;
           cursor: pointer;
-          transition: all var(--transition-fast);
         }
 
-        .artifact-item:hover,
-        .artifact-item.selected {
-          background: var(--glass-bg);
-          border-color: rgba(255, 255, 255, 0.15);
+        .row.still {
+          cursor: default;
         }
 
-        .artifact-header {
-          display: flex;
-          align-items: center;
-          gap: var(--space-sm);
-          margin-bottom: var(--space-xs);
+        .row.on {
+          border-bottom-color: var(--ink);
         }
 
-        .artifact-severity {
-          width: 8px;
-          height: 8px;
-          border-radius: var(--radius-full);
+        .sev {
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
         }
 
-        .artifact-type {
-          font-size: 0.85rem;
+        .sev.high {
+          color: var(--flagged);
+        }
+
+        .sev.medium {
+          color: var(--caution);
+        }
+
+        .sev.low {
+          color: var(--muted);
+        }
+
+        .what b {
+          font-size: 0.9375rem;
           font-weight: 500;
-          color: var(--text-primary);
+          color: var(--ink);
         }
 
-        .artifact-description {
-          font-size: 0.8rem;
-          color: var(--text-muted);
-          margin: 0;
-          line-height: 1.4;
+        .what p {
+          margin: 2px 0 0;
+          font-size: 0.9375rem;
+          line-height: 1.5;
+          color: var(--graphite);
         }
 
-        .no-artifacts {
-          padding: var(--space-md);
-          text-align: center;
-          color: var(--text-muted);
-          font-size: 0.9rem;
+        .where {
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          text-align: right;
+          color: var(--muted);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .none {
+          margin: 16px 0 0;
+          font-size: 0.9375rem;
+          line-height: 1.55;
+          color: var(--muted);
+          max-width: 62ch;
+        }
+
+        @media (max-width: 620px) {
+          .row {
+            grid-template-columns: 68px minmax(0, 1fr);
+          }
+
+          .row .where {
+            display: none;
+          }
         }
       `}</style>
     </div>
   );
-}
-
-function formatArtifactType(type: string): string {
-  return type
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
 }

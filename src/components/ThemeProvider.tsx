@@ -10,7 +10,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: 'dark',
+  theme: 'light',
   toggleTheme: () => {},
 });
 
@@ -18,23 +18,25 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
+export const THEME_STORAGE_KEY = 'originlayer-theme';
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+    const resolved: Theme =
+      stored ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme(resolved);
+    document.documentElement.setAttribute('data-theme', resolved);
     setMounted(true);
-    const savedTheme = localStorage.getItem('originlayer-theme') as Theme | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    }
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    const newTheme: Theme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    localStorage.setItem('originlayer-theme', newTheme);
+    localStorage.setItem(THEME_STORAGE_KEY, newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 

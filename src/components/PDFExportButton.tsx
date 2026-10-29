@@ -2,6 +2,7 @@
 
 import { jsPDF } from 'jspdf';
 import { AnalysisResult } from '@/lib/types';
+import { getVerdictLabel } from '@/lib/utils';
 import { showToast } from './ToastProvider';
 
 interface ReportData {
@@ -32,49 +33,52 @@ export async function generatePDFReport({ result, imageUrl, imageName }: ReportD
         const margin = 20;
         let yPosition = margin;
 
-        // Colors
-        const primaryColor: [number, number, number] = [99, 102, 241];
-        const textColor: [number, number, number] = [30, 41, 59];
-        const mutedColor: [number, number, number] = [100, 116, 139];
-        const successColor: [number, number, number] = [34, 197, 94];
-        const dangerColor: [number, number, number] = [239, 68, 68];
+        // The report palette used on screen, flattened to print values
+        const inkColor: [number, number, number] = [21, 23, 27];
+        const graphiteColor: [number, number, number] = [74, 80, 88];
+        const mutedColor: [number, number, number] = [94, 101, 110];
+        const ruleColor: [number, number, number] = [210, 214, 220];
+        const verifiedColor: [number, number, number] = [22, 105, 58];
+        const flaggedColor: [number, number, number] = [163, 33, 27];
+        const cautionColor: [number, number, number] = [138, 90, 0];
+        const washColor: [number, number, number] = [247, 248, 249];
+        const flaggedWash: [number, number, number] = [248, 236, 234];
+        const verifiedWash: [number, number, number] = [234, 243, 237];
 
         const reportId = generateReportId();
         const isAI = result.verdict === 'AI_GENERATED' || result.verdict === 'LIKELY_AI';
         const confidence = result.confidence;
+        const verdict = getVerdictLabel(result.verdict).label.toUpperCase();
 
-        // Header Background
-        doc.setFillColor(15, 23, 42);
+        // Header
+        doc.setFillColor(...inkColor);
         doc.rect(0, 0, pageWidth, 50, 'F');
 
-        // Title
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(24);
         doc.setFont('helvetica', 'bold');
-        doc.text('AI Forensic Analyzer', margin, 25);
+        doc.text('OriginLayer', margin, 25);
 
-        // Subtitle
         doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
-        doc.text('Analysis Report', margin, 35);
+        doc.text('Examination report', margin, 35);
 
-        // Report ID and Date
         doc.setFontSize(10);
-        doc.text(`Report ID: ${reportId}`, pageWidth - margin - 60, 25);
+        doc.text(`Report ${reportId}`, pageWidth - margin - 60, 25);
         doc.text(formatDate(new Date()), pageWidth - margin - 60, 35);
 
         yPosition = 70;
 
-        // Main Result Section
-        doc.setFillColor(isAI ? 254 : 240, isAI ? 242 : 253, isAI ? 242 : 244);
+        // Verdict
+        doc.setFillColor(...(isAI ? flaggedWash : verifiedWash));
         doc.roundedRect(margin, yPosition - 10, pageWidth - 2 * margin, 45, 5, 5, 'F');
 
-        doc.setTextColor(...(isAI ? dangerColor : successColor));
+        doc.setTextColor(...(isAI ? flaggedColor : verifiedColor));
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
-        doc.text(isAI ? 'AI-GENERATED DETECTED' : 'LIKELY REAL IMAGE', margin + 10, yPosition + 8);
+        doc.text(verdict, margin + 10, yPosition + 8);
 
-        doc.setTextColor(...textColor);
+        doc.setTextColor(...inkColor);
         doc.setFontSize(14);
         doc.setFont('helvetica', 'normal');
         doc.text(`Confidence: ${(confidence * 100).toFixed(1)}%`, margin + 10, yPosition + 22);
@@ -82,124 +86,110 @@ export async function generatePDFReport({ result, imageUrl, imageName }: ReportD
         if (result.calibration) {
             doc.setTextColor(...mutedColor);
             doc.setFontSize(11);
-            doc.text(`Calibrated Confidence (DACC): ${(result.calibration.calibratedScore * 100).toFixed(1)}%`, margin + 10, yPosition + 32);
+            doc.text(`Calibrated confidence (DACC): ${(result.calibration.calibratedScore * 100).toFixed(1)}%`, margin + 10, yPosition + 32);
         }
 
         yPosition += 55;
 
-        // Detector Results Section
-        doc.setTextColor(...textColor);
+        // Read results
+        doc.setTextColor(...inkColor);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.text('Detector Results', margin, yPosition);
+        doc.text('Reads and scores', margin, yPosition);
         yPosition += 10;
 
-        // Draw detector bars
         const detectors = [
-            { name: 'HuggingFace AI Detector', score: result.detectors.huggingface?.score || 0, weight: `${(result.fusion.huggingfaceWeight * 100).toFixed(0)}%` },
-            { name: 'Gemini Vision LLM', score: result.detectors.visionLLM?.score || 0, weight: `${(result.fusion.visionLLMWeight * 100).toFixed(0)}%` },
-            { name: 'DCT Frequency Analysis', score: result.detectors.dctAnalysis?.score || 0, weight: `${(result.fusion.dctWeight * 100).toFixed(0)}%` },
+            { name: 'HuggingFace classifier', score: result.detectors.huggingface?.score || 0, weight: `${(result.fusion.huggingfaceWeight * 100).toFixed(0)}%` },
+            { name: 'Gemini vision review', score: result.detectors.visionLLM?.score || 0, weight: `${(result.fusion.visionLLMWeight * 100).toFixed(0)}%` },
+            { name: 'DCT spectra', score: result.detectors.dctAnalysis?.score || 0, weight: `${(result.fusion.dctWeight * 100).toFixed(0)}%` },
         ];
 
         detectors.forEach((detector, index) => {
             const barY = yPosition + index * 25;
 
-            // Label
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor(...textColor);
+            doc.setTextColor(...inkColor);
             doc.text(`${detector.name} (${detector.weight})`, margin, barY);
 
-            // Background bar
-            doc.setFillColor(226, 232, 240);
+            doc.setFillColor(...ruleColor);
             doc.roundedRect(margin, barY + 3, pageWidth - 2 * margin - 40, 8, 2, 2, 'F');
 
-            // Score bar
             const barWidth = (pageWidth - 2 * margin - 40) * detector.score;
-            const scoreColor = detector.score > 0.65 ? dangerColor : detector.score > 0.35 ? [245, 158, 11] as [number, number, number] : successColor;
+            const scoreColor = detector.score >= 0.65 ? flaggedColor : detector.score >= 0.35 ? cautionColor : verifiedColor;
             doc.setFillColor(...scoreColor);
             doc.roundedRect(margin, barY + 3, Math.max(barWidth, 2), 8, 2, 2, 'F');
 
-            // Score text
             doc.setFontSize(10);
+            doc.setTextColor(...graphiteColor);
             doc.text(`${(detector.score * 100).toFixed(1)}%`, pageWidth - margin - 35, barY + 9);
         });
 
         yPosition += 85;
 
-        // Novel Contributions Section
+        // Novel methods
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...textColor);
-        doc.text('Novel Research Contributions', margin, yPosition);
+        doc.setTextColor(...inkColor);
+        doc.text('Novel methods applied', margin, yPosition);
         yPosition += 12;
 
-        // DACC
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 25, 3, 3, 'F');
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...primaryColor);
-        doc.text('DACC (Disagreement-Aware Confidence Calibration)', margin + 5, yPosition + 10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...mutedColor);
-        doc.setFontSize(9);
-        doc.text(`Trust Score: ${((result.calibration?.trustScore || 0) * 100).toFixed(1)}% | Calibrated: ${((result.calibration?.calibratedScore || result.confidence) * 100).toFixed(1)}%`, margin + 5, yPosition + 19);
-        yPosition += 30;
+        const methodBlocks = [
+            {
+                title: 'DACC — Disagreement-Aware Confidence Calibration',
+                line: `Trust score: ${((result.calibration?.trustScore || 0) * 100).toFixed(1)}% | Calibrated: ${((result.calibration?.calibratedScore || result.confidence) * 100).toFixed(1)}%`,
+            },
+            {
+                title: 'SAM — Spatial Artifact Mapping',
+                line: `Regions flagged: ${result.spatialAnalysis?.hotspots?.length || 0} | Likely composite: ${result.spatialAnalysis?.isLikelyComposite ? 'Yes' : 'No'}`,
+            },
+            {
+                title: 'DRWF — Dynamic Reliability-Weighted Fusion',
+                line: `Reliability weighting: ${result.fusion?.dynamicWeighting?.enabled ? 'Applied' : 'Not applied'} | ${result.fusion?.dynamicWeighting?.weightAdjustments || 'Base weights used'}`,
+            },
+        ];
 
-        // SAM
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 25, 3, 3, 'F');
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...primaryColor);
-        doc.text('SAM (Spatial Artifact Mapping)', margin + 5, yPosition + 10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...mutedColor);
-        doc.setFontSize(9);
-        const hotspotCount = result.spatialAnalysis?.hotspots?.length || 0;
-        doc.text(`Hotspots Detected: ${hotspotCount} regions | Composite: ${result.spatialAnalysis?.isLikelyComposite ? 'Yes' : 'No'}`, margin + 5, yPosition + 19);
-        yPosition += 30;
+        methodBlocks.forEach((block) => {
+            doc.setFillColor(...washColor);
+            doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 25, 3, 3, 'F');
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...inkColor);
+            doc.text(block.title, margin + 5, yPosition + 10);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(...mutedColor);
+            doc.setFontSize(9);
+            doc.text(block.line, margin + 5, yPosition + 19);
+            yPosition += 30;
+        });
 
-        // DRWF
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 25, 3, 3, 'F');
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...primaryColor);
-        doc.text('DRWF (Dynamic Reliability-Weighted Fusion)', margin + 5, yPosition + 10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...mutedColor);
-        doc.setFontSize(9);
-        doc.text(`Dynamic Weighting: ${result.fusion?.dynamicWeighting?.enabled ? 'Enabled' : 'Disabled'} | ${result.fusion?.dynamicWeighting?.weightAdjustments || 'Standard weights applied'}`, margin + 5, yPosition + 19);
-        yPosition += 35;
+        yPosition += 5;
 
-        // Analysis Details
+        // Vision read
         if (result.detectors.visionLLM?.analysis?.overallAssessment) {
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...textColor);
-            doc.text('AI Analysis Summary', margin, yPosition);
+            doc.setTextColor(...inkColor);
+            doc.text('What the vision read said', margin, yPosition);
             yPosition += 8;
 
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor(...mutedColor);
+            doc.setTextColor(...graphiteColor);
 
-            // Word wrap the assessment
             const lines = doc.splitTextToSize(result.detectors.visionLLM.analysis.overallAssessment, pageWidth - 2 * margin);
-            doc.text(lines.slice(0, 4), margin, yPosition); // Limit to 4 lines
+            doc.text(lines.slice(0, 4), margin, yPosition);
             yPosition += lines.slice(0, 4).length * 5 + 10;
         }
 
         // Footer
         const footerY = pageHeight - 20;
-        doc.setDrawColor(226, 232, 240);
+        doc.setDrawColor(...ruleColor);
         doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
 
         doc.setFontSize(9);
         doc.setTextColor(...mutedColor);
-        doc.text('AI Forensic Analyzer | Research Project', margin, footerY);
+        doc.text('OriginLayer | research project', margin, footerY);
         doc.text('Team: Aashish Kumar Mahato, Rahul Yadav, Bibek Gami', margin, footerY + 5);
         doc.text(`Generated: ${formatDate(new Date())}`, pageWidth - margin - 50, footerY);
 
@@ -226,51 +216,25 @@ export default function PDFExportButton({ result, imageUrl, imageName }: ReportD
     return (
         <button
             onClick={handleExport}
-            className="pdf-export-btn"
-            aria-label="Download PDF Report"
+            className="btn btn-primary"
+            aria-label="Download the PDF report"
         >
             <svg
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                aria-hidden="true"
             >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7,10 12,15 17,10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>Download PDF Report</span>
-
-            <style jsx>{`
-        .pdf-export-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.875rem 1.5rem;
-          background: linear-gradient(135deg, #6366f1, #8b5cf6);
-          border: none;
-          border-radius: 12px;
-          color: white;
-          font-size: 0.95rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
-        }
-
-        .pdf-export-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
-        }
-
-        .pdf-export-btn:active {
-          transform: translateY(0);
-        }
-      `}</style>
+            <span>Download the PDF report</span>
         </button>
     );
 }

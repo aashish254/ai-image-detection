@@ -3,11 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ToastProvider } from './ToastProvider';
-import dynamic from 'next/dynamic';
 import Navbar from './Navbar';
 import { ThemeProvider } from './ThemeProvider';
-
-const ParticleField = dynamic(() => import('./ParticleField'), { ssr: false });
 
 export function Header() {
     return (
@@ -55,14 +52,7 @@ export function Footer() {
 }
 
 export function BackgroundEffects() {
-    return (
-        <div className="bg-effects" aria-hidden="true">
-            <div className="gradient-orb orb-1"></div>
-            <div className="gradient-orb orb-2"></div>
-            <div className="gradient-orb orb-3"></div>
-            <div className="grid-pattern"></div>
-        </div>
-    );
+    return null;
 }
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -73,12 +63,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <ThemeProvider>
             <div className="app-wrapper">
                 <ToastProvider />
-                <ParticleField
-                    particleCount={60}
-                    speed={0.2}
-                    interactive={true}
-                    connectDistance={100}
-                />
                 {!isCustomLayoutRoute && <Header />}
                 {isCustomLayoutRoute && <Navbar />}
                 <main className={isCustomLayoutRoute ? "" : "main-content"} style={{ position: 'relative', zIndex: 1 }}>

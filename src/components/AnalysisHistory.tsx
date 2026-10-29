@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { History, Trash2, Eye, Clock, CheckCircle, XCircle, Grid, List } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { VERDICT_TONE } from '@/lib/report';
+import { getVerdictLabel } from '@/lib/utils';
 import { AnalysisResult } from '@/lib/types';
 
 interface HistoryItem {
@@ -54,7 +55,7 @@ function createThumbnail(imageUrl: string): Promise<string> {
         const x = (size - w) / 2;
         const y = (size - h) / 2;
 
-        ctx.fillStyle = '#1a1a2e';
+        ctx.fillStyle = '#8e959d';
         ctx.fillRect(0, 0, size, size);
         ctx.drawImage(img, x, y, w, h);
 
@@ -197,7 +198,6 @@ export function deleteHistoryItem(id: string) {
 export default function AnalysisHistory({ onSelectItem, triggerElement }: AnalysisHistoryProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'ai' | 'real'>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -232,440 +232,310 @@ export default function AnalysisHistory({ onSelectItem, triggerElement }: Analys
           {triggerElement}
         </div>
       ) : (
-        <motion.button
-          className="history-toggle"
-          onClick={() => setIsOpen(!isOpen)}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <History size={20} />
-          <span>History</span>
-          {history.length > 0 && (
-            <span className="history-badge">{history.length}</span>
-          )}
-        </motion.button>
+        <button className="drawer-trigger" onClick={() => setIsOpen(!isOpen)}>
+          Past reports{history.length > 0 ? ` · ${history.length}` : ''}
+        </button>
       )}
 
-      {/* History Panel */}
-      <AnimatePresence>
-        {isOpen && (
+      {/* History Panel — portalled to <body>: <main> carries z-index:1, which would
+          otherwise trap a fixed overlay in that stacking context, under the navbar. */}
+      {isOpen &&
+        createPortal(
           <>
-            <motion.div
-              className="history-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-            />
-            <motion.div
-              className="history-panel"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            >
-              <div className="history-header">
-                <h3>
-                  <History size={24} />
-                  Analysis History
-                </h3>
-                <button className="close-btn" onClick={() => setIsOpen(false)}>×</button>
-              </div>
-
-              <div className="history-controls">
-                <div className="filter-buttons">
-                  <button
-                    className={filter === 'all' ? 'active' : ''}
-                    onClick={() => setFilter('all')}
-                  >
-                    All
-                  </button>
-                  <button
-                    className={filter === 'ai' ? 'active' : ''}
-                    onClick={() => setFilter('ai')}
-                  >
-                    AI
-                  </button>
-                  <button
-                    className={filter === 'real' ? 'active' : ''}
-                    onClick={() => setFilter('real')}
-                  >
-                    Real
-                  </button>
+            <div className="drawer-veil" onClick={() => setIsOpen(false)} />
+            <aside className="drawer" aria-label="Past reports">
+              <div className="drawer-head">
+                <div>
+                  <p className="k">Log</p>
+                  <h3>Past reports from this browser</h3>
+                  <p className="drawer-note">
+                    Only the verdict, the confidence and the thumbnail are kept — the measurements
+                    behind a report are not stored, so an earlier entry cannot be reopened.
+                  </p>
                 </div>
-
-                <div className="view-buttons">
-                  <button
-                    className={viewMode === 'grid' ? 'active' : ''}
-                    onClick={() => setViewMode('grid')}
-                  >
-                    <Grid size={18} />
-                  </button>
-                  <button
-                    className={viewMode === 'list' ? 'active' : ''}
-                    onClick={() => setViewMode('list')}
-                  >
-                    <List size={18} />
-                  </button>
-                </div>
-              </div>
-
-              {history.length > 0 && (
-                <button className="clear-all-btn" onClick={clearHistory}>
-                  <Trash2 size={16} />
-                  Clear All
+                <button className="drawer-close" onClick={() => setIsOpen(false)}>
+                  Close
                 </button>
-              )}
+              </div>
 
-              <div className={`history-items ${viewMode}`}>
-                {filteredHistory.length === 0 ? (
-                  <div className="empty-state">
-                    <History size={48} />
-                    <p>No analysis history yet</p>
-                  </div>
-                ) : (
-                  filteredHistory.map((item, index) => {
-                    const itemIsAI = isAIGenerated(item.result);
-                    return (
-                      <motion.div
-                        key={item.id}
-                        className="history-item"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        whileHover={{ scale: 1.02 }}
-                      >
-                        <div className="item-image">
-                          <img src={item.imageUrl} alt={item.imageName} />
-                          <div className={`item-badge ${itemIsAI ? 'ai' : 'real'}`}>
-                            {itemIsAI ? (
-                              <XCircle size={14} />
-                            ) : (
-                              <CheckCircle size={14} />
+              <div className="drawer-filters">
+                <button
+                  type="button"
+                  className={`opt${filter === 'all' ? ' on' : ''}`}
+                  aria-pressed={filter === 'all'}
+                  onClick={() => setFilter('all')}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className={`opt${filter === 'ai' ? ' on' : ''}`}
+                  aria-pressed={filter === 'ai'}
+                  onClick={() => setFilter('ai')}
+                >
+                  AI
+                </button>
+                <button
+                  type="button"
+                  className={`opt${filter === 'real' ? ' on' : ''}`}
+                  aria-pressed={filter === 'real'}
+                  onClick={() => setFilter('real')}
+                >
+                  Real
+                </button>
+                <span className="drawer-count">
+                  {filteredHistory.length} of {history.length}
+                </span>
+              </div>
+
+              {history.length === 0 ? (
+                <p className="dp-none drawer-empty">
+                  Nothing kept yet. A report is filed here each time an image finishes.
+                </p>
+              ) : (
+                <div className="drawer-rows">
+                  {filteredHistory.length === 0 ? (
+                    <p className="dp-none">
+                      No {filter === 'ai' ? 'AI' : 'real'} verdicts among the {history.length}{' '}
+                      kept.
+                    </p>
+                  ) : (
+                    filteredHistory.map((item) => {
+                      const itemIsAI = isAIGenerated(item.result);
+                      return (
+                        <div className="drawer-row" key={item.id}>
+                          {item.imageUrl ? (
+                            <img
+                              className="thumb"
+                              src={item.imageUrl}
+                              alt={item.imageName}
+                              width={56}
+                              height={56}
+                            />
+                          ) : (
+                            <span className="thumb thumb-missing" />
+                          )}
+                          <span className="row-name">{item.imageName}</span>
+                          <span className="row-meta">
+                            {formatDate(item.timestamp)} · confidence{' '}
+                            {(item.result.confidence * 100).toFixed(0)}%
+                          </span>
+                          <span className={`row-word tone ${VERDICT_TONE[item.result.verdict] ?? 'caution'}`}>
+                            {getVerdictLabel(item.result.verdict).label}
+                          </span>
+                          <div className="row-acts">
+                            {onSelectItem && (
+                              <button
+                                type="button"
+                                className="row-act"
+                                onClick={() => onSelectItem(item)}
+                              >
+                                Open
+                              </button>
                             )}
-                            {itemIsAI ? 'AI' : 'Real'}
+                            <button
+                              type="button"
+                              className="row-act"
+                              onClick={() => deleteHistoryItem(item.id)}
+                            >
+                              Remove
+                            </button>
                           </div>
                         </div>
-                        <div className="item-info">
-                          <p className="item-name">{item.imageName}</p>
-                          <p className="item-date">
-                            <Clock size={12} />
-                            {formatDate(item.timestamp)}
-                          </p>
-                          <p className="item-confidence">
-                            Confidence: {(item.result.confidence * 100).toFixed(0)}%
-                          </p>
-                        </div>
-                        <div className="item-actions">
-                          <button
-                            className="view-btn"
-                            onClick={() => onSelectItem?.(item)}
-                            title="View Details"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            className="delete-btn"
-                            onClick={() => deleteHistoryItem(item.id)}
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })
-                )}
-              </div>
-            </motion.div>
-          </>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {history.length > 0 && (
+                <div className="drawer-foot">
+                  <button type="button" className="row-act danger" onClick={clearHistory}>
+                    Clear all {history.length}
+                  </button>
+                </div>
+              )}
+            </aside>
+          </>,
+          document.body
         )}
-      </AnimatePresence>
 
       <style jsx>{`
-        .history-toggle {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1.25rem;
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 12px;
-          color: var(--text-primary);
-          font-size: 0.9rem;
-          font-weight: 500;
+        .drawer-trigger {
+          padding: 6px 12px;
+          border: 1px solid var(--rule);
+          background: transparent;
+          font: inherit;
+          font-size: 0.875rem;
+          color: var(--graphite);
           cursor: pointer;
-          transition: all 0.3s ease;
         }
 
-        .history-toggle:hover {
-          background: rgba(99, 102, 241, 0.1);
-          border-color: rgba(99, 102, 241, 0.3);
-        }
-
-        .history-badge {
-          background: var(--gradient-primary);
-          color: white;
-          font-size: 0.75rem;
-          padding: 0.2rem 0.5rem;
-          border-radius: 10px;
-          font-weight: 600;
-        }
-
-        .history-overlay {
+        .drawer-veil {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(4px);
-          z-index: 1000;
+          background: rgba(12, 14, 17, 0.45);
+          z-index: 1100;
+          animation: ol-veil-in 0.18s ease-out;
         }
 
-        .history-panel {
+        .drawer {
           position: fixed;
           top: 0;
           right: 0;
-          width: 400px;
-          max-width: 90vw;
-          height: 100vh;
-          background: var(--bg-elevated);
-          border-left: 1px solid var(--glass-border);
-          z-index: 1001;
+          height: 100%;
+          width: min(460px, 100vw);
+          background: var(--sheet);
+          border-left: 1px solid var(--rule);
+          z-index: 1101;
           display: flex;
           flex-direction: column;
-          box-shadow: -10px 0 40px rgba(0, 0, 0, 0.3);
+          animation: ol-drawer-in 0.2s ease-out;
         }
 
-        .history-header {
+        .drawer-head {
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          padding: 1.5rem;
-          border-bottom: 1px solid var(--glass-border);
+          align-items: flex-start;
+          gap: 16px;
+          padding: 22px;
+          border-bottom: 1px solid var(--rule);
         }
 
-        .history-header h3 {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          font-size: 1.25rem;
-          margin: 0;
+        .drawer-head h3 {
+          margin: 2px 0 0;
+          font-size: 1.125rem;
         }
 
-        .close-btn {
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          font-size: 1.5rem;
+        .drawer-note {
+          margin: 8px 0 0;
+          font-size: 0.875rem;
+          line-height: 1.5;
+          color: var(--muted);
+          max-width: 40ch;
+        }
+
+        .drawer-close {
+          flex-shrink: 0;
+          padding: 2px 0 3px;
+          background: none;
+          border: 0;
+          border-bottom: 1px solid var(--rule-strong);
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--graphite);
           cursor: pointer;
-          border-radius: 8px;
-          transition: all 0.2s;
         }
 
-        .close-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: var(--text-primary);
-        }
-
-        .history-controls {
-          display: flex;
-          justify-content: space-between;
-          padding: 1rem 1.5rem;
-          border-bottom: 1px solid var(--glass-border);
-        }
-
-        .filter-buttons, .view-buttons {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .filter-buttons button, .view-buttons button {
-          padding: 0.5rem 1rem;
-          background: transparent;
-          border: 1px solid var(--glass-border);
-          border-radius: 8px;
-          color: var(--text-secondary);
-          font-size: 0.85rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .filter-buttons button.active, .view-buttons button.active {
-          background: rgba(99, 102, 241, 0.2);
-          border-color: rgba(99, 102, 241, 0.5);
-          color: var(--primary-400);
-        }
-
-        .clear-all-btn {
+        .drawer-filters {
           display: flex;
           align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          margin: 0.75rem 1.5rem;
-          padding: 0.5rem;
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          border-radius: 8px;
-          color: #ef4444;
-          font-size: 0.85rem;
-          cursor: pointer;
-          transition: all 0.2s;
+          flex-wrap: wrap;
+          gap: 8px;
+          padding: 14px 22px;
+          border-bottom: 1px solid var(--rule-soft);
         }
 
-        .clear-all-btn:hover {
-          background: rgba(239, 68, 68, 0.2);
+        .drawer-count {
+          margin-left: auto;
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--muted);
         }
 
-        .history-items {
+        .drawer-rows {
           flex: 1;
           overflow-y: auto;
-          padding: 1rem 1.5rem;
+          padding: 0 22px;
         }
 
-        .history-items.grid {
+        .drawer-row {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 1rem;
-        }
-
-        .history-items.list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .empty-state {
-          display: flex;
-          flex-direction: column;
+          grid-template-columns: 56px minmax(0, 1fr) auto;
+          grid-template-areas:
+            'thumb name word'
+            'thumb meta meta'
+            'thumb acts acts';
+          gap: 2px 12px;
           align-items: center;
-          justify-content: center;
-          height: 200px;
-          color: var(--text-muted);
-          text-align: center;
+          padding: 14px 0;
+          border-bottom: 1px solid var(--rule-soft);
         }
 
-        .empty-state p {
-          margin-top: 1rem;
-        }
-
-        .history-item {
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 12px;
-          overflow: hidden;
-          transition: all 0.3s ease;
-        }
-
-        .history-items.list .history-item {
-          display: flex;
-          align-items: center;
-        }
-
-        .item-image {
-          position: relative;
-          aspect-ratio: 1;
-          overflow: hidden;
-        }
-
-        .history-items.list .item-image {
-          width: 80px;
-          height: 80px;
-          flex-shrink: 0;
-        }
-
-        .item-image img {
-          width: 100%;
-          height: 100%;
+        .thumb {
+          grid-area: thumb;
+          width: 56px;
+          height: 56px;
           object-fit: cover;
+          border: 1px solid var(--rule);
+          background: var(--sheet-sunk);
         }
 
-        .item-badge {
-          position: absolute;
-          top: 0.5rem;
-          right: 0.5rem;
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.25rem 0.5rem;
-          border-radius: 6px;
-          font-size: 0.7rem;
-          font-weight: 600;
+        .thumb-missing {
+          display: block;
         }
 
-        .item-badge.ai {
-          background: rgba(239, 68, 68, 0.9);
-          color: white;
-        }
-
-        .item-badge.real {
-          background: rgba(34, 197, 94, 0.9);
-          color: white;
-        }
-
-        .item-info {
-          padding: 0.75rem;
-          flex: 1;
-        }
-
-        .item-name {
-          font-size: 0.85rem;
-          font-weight: 500;
-          margin: 0 0 0.25rem;
-          white-space: nowrap;
+        .row-name {
+          grid-area: name;
+          display: block;
+          min-width: 0;
+          font-size: 0.9375rem;
+          color: var(--ink);
           overflow: hidden;
           text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
-        .item-date {
+        .row-meta {
+          grid-area: meta;
+          display: block;
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--muted);
+        }
+
+        .row-word {
+          grid-area: word;
+          justify-self: end;
+          font-family: var(--font-mono);
+          font-size: 0.9375rem;
+          white-space: nowrap;
+        }
+
+        .row-acts {
+          grid-area: acts;
           display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          margin: 0 0 0.25rem;
+          gap: 14px;
         }
 
-        .item-confidence {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          margin: 0;
-        }
-
-        .item-actions {
-          display: flex;
-          gap: 0.5rem;
-          padding: 0.75rem;
-        }
-
-        .history-items.grid .item-actions {
-          justify-content: center;
-          border-top: 1px solid var(--glass-border);
-        }
-
-        .view-btn, .delete-btn {
-          padding: 0.5rem;
-          background: transparent;
-          border: 1px solid var(--glass-border);
-          border-radius: 6px;
-          color: var(--text-secondary);
+        .row-act {
+          padding: 2px 0 3px;
+          background: none;
+          border: 0;
+          border-bottom: 1px solid var(--rule);
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--graphite);
           cursor: pointer;
-          transition: all 0.2s;
         }
 
-        .view-btn:hover {
-          background: rgba(99, 102, 241, 0.2);
-          border-color: rgba(99, 102, 241, 0.5);
-          color: var(--primary-400);
+        .row-act:hover {
+          border-bottom-color: var(--ink);
+          color: var(--ink);
         }
 
-        .delete-btn:hover {
-          background: rgba(239, 68, 68, 0.2);
-          border-color: rgba(239, 68, 68, 0.5);
-          color: #ef4444;
+        .row-act.danger:hover {
+          border-bottom-color: var(--flagged);
+          color: var(--flagged);
+        }
+
+        .drawer-empty {
+          padding: 22px;
+        }
+
+        .drawer-foot {
+          padding: 14px 22px;
+          border-top: 1px solid var(--rule);
         }
       `}</style>
     </>

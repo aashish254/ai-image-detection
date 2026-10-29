@@ -155,54 +155,6 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 /**
- * Get trust level color based on trust score
- */
-export function getTrustColor(trustScore: number): string {
-    if (trustScore >= 0.75) return '#10b981'; // Green - high trust
-    if (trustScore >= 0.5) return '#f59e0b';  // Yellow - moderate trust
-    if (trustScore >= 0.25) return '#f97316'; // Orange - low trust
-    return '#ef4444';                          // Red - very low trust
-}
-
-/**
- * Get recommendation badge style
- */
-export function getRecommendationStyle(recommendation: string): { color: string; bgColor: string; label: string } {
-    switch (recommendation) {
-        case 'high_confidence':
-            return { color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)', label: 'High Confidence' };
-        case 'moderate_confidence':
-            return { color: '#eab308', bgColor: 'rgba(234, 179, 8, 0.15)', label: 'Moderate Confidence' };
-        case 'low_confidence':
-            return { color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.15)', label: 'Low Confidence' };
-        case 'human_review_recommended':
-            return { color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', label: 'Human Review Needed' };
-        default:
-            return { color: '#6b7280', bgColor: 'rgba(107, 114, 128, 0.15)', label: 'Unknown' };
-    }
-}
-
-/**
- * Format disagreement type for display
- */
-export function getDisagreementLabel(type: string): { label: string; color: string } {
-    switch (type) {
-        case 'agreement':
-            return { label: 'Full Agreement', color: '#10b981' };
-        case 'mild':
-            return { label: 'Minor Variation', color: '#22c55e' };
-        case 'moderate':
-            return { label: 'Moderate Disagreement', color: '#eab308' };
-        case 'severe':
-            return { label: 'Significant Disagreement', color: '#f97316' };
-        case 'conflict':
-            return { label: 'Detector Conflict', color: '#ef4444' };
-        default:
-            return { label: 'Unknown', color: '#6b7280' };
-    }
-}
-
-/**
  * Check if image is valid base64
  */
 export function isValidBase64Image(base64: string): boolean {

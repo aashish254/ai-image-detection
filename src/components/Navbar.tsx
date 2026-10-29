@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Sparkles, Moon, Sun } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Menu, X, Moon, Sun } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 
 const navLinks = [
   { href: '/features', label: 'Features' },
-  { href: '/working-model', label: 'How It Works' },
+  { href: '/working-model', label: 'Method' },
   { href: '/novelty', label: 'Research' },
 ];
 
@@ -20,101 +20,87 @@ export default function Navbar() {
 
   return (
     <>
-      <motion.nav
-        className="navbar"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <nav className="navbar">
         <div className="nav-inner">
-          {/* Logo */}
-          <Link href="/" className="logo">
-            <div className="logo-icon">
-              <Sparkles size={16} />
-            </div>
+          <Link href="/" className="ol-logo">
             <span className="logo-text">OriginLayer</span>
-            <span className="logo-version">v2</span>
+            <span className="logo-version">v2.0</span>
           </Link>
 
-          {/* Desktop Links */}
           <div className="nav-links">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`nav-link ${pathname === link.href ? 'active' : ''}`}
+                className={`ol-nav-link ${pathname === link.href ? 'active' : ''}`}
+                aria-current={pathname === link.href ? 'page' : undefined}
               >
                 {link.label}
               </Link>
             ))}
+            <Link
+              href="/analyze"
+              className={`ol-nav-link ${pathname === '/analyze' ? 'active' : ''}`}
+              aria-current={pathname === '/analyze' ? 'page' : undefined}
+            >
+              Analyze
+            </Link>
           </div>
 
-          {/* Actions */}
           <div className="nav-actions">
-            {/* Premium Theme Toggle — Pill Switch */}
+            <span className="nav-rev">7 detectors, rev 2.0.0</span>
+
             <button
-              className="theme-switch"
+              className="theme-toggle"
               onClick={toggleTheme}
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              data-theme-active={theme}
             >
-              <div className="switch-track">
-                <span className="switch-icon sun-icon">
-                  <Sun size={12} strokeWidth={2.5} />
-                </span>
-                <span className="switch-icon moon-icon">
-                  <Moon size={12} strokeWidth={2.5} />
-                </span>
-                <div className={`switch-thumb ${theme === 'light' ? 'thumb-right' : ''}`} />
-              </div>
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </button>
 
-            <Link href="/analyze" className="nav-cta">
-              <span className="cta-dot" />
-              Analyze
+            <Link href="/analyze" className="ol-nav-cta">
+              Examine an image
             </Link>
 
             <button
               className="mobile-toggle"
               onClick={() => setIsMobileOpen(!isMobileOpen)}
               aria-label="Toggle menu"
+              aria-expanded={isMobileOpen}
             >
-              {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
+              {isMobileOpen ? <X size={17} /> : <Menu size={17} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           {isMobileOpen && (
             <motion.div
-              className="mobile-menu"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
+              className="ol-mobile-menu"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
             >
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`mobile-link ${pathname === link.href ? 'active' : ''}`}
-                  onClick={() => setIsMobileOpen(false)}
-                >
-                  {link.label}
+              <div className="mobile-menu-inner">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`ol-mobile-link ${pathname === link.href ? 'active' : ''}`}
+                    onClick={() => setIsMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                <Link href="/analyze" className="ol-mobile-cta" onClick={() => setIsMobileOpen(false)}>
+                  Examine an image
                 </Link>
-              ))}
-              <Link
-                href="/analyze"
-                className="mobile-cta"
-                onClick={() => setIsMobileOpen(false)}
-              >
-                Analyze Image
-              </Link>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.nav>
+      </nav>
 
       <style jsx>{`
         .navbar {
@@ -123,44 +109,33 @@ export default function Navbar() {
           left: 0;
           right: 0;
           z-index: 1000;
-          margin: 0;
-          padding: 0;
-          background: var(--nav-bg, rgba(5, 5, 7, 0.8));
-          backdrop-filter: blur(24px) saturate(1.4);
-          -webkit-backdrop-filter: blur(24px) saturate(1.4);
-          border-bottom: 1px solid var(--nav-border, rgba(255, 255, 255, 0.06));
-          transition: background 0.3s ease, border-color 0.3s ease;
+          background: var(--nav-bg);
+          border-bottom: 1px solid var(--nav-border);
         }
 
         .nav-inner {
-          max-width: 1200px;
+          max-width: 1120px;
           margin: 0 auto;
           padding: 0 32px;
-          height: 60px;
+          height: 56px;
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: 32px;
         }
 
-        /* Logo */
-        .logo {
+        /* next/link and motion.div are custom components, so styled-jsx cannot
+           inject its scope class onto their DOM node. These carry the ol- prefix
+           and are declared :global to stay collision-free with globals.css. */
+        :global(.ol-logo) {
           display: flex;
-          align-items: center;
-          gap: 10px;
-          text-decoration: none;
-          color: var(--text-primary, white);
+          align-items: baseline;
+          gap: 9px;
+          color: var(--ink);
         }
 
-        .logo-icon {
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(135deg, #6366f1, #8b5cf6);
-          border-radius: 9px;
-          color: white;
-          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        :global(.ol-logo:hover) {
+          color: var(--ink);
         }
 
         .logo-text {
@@ -170,254 +145,159 @@ export default function Navbar() {
         }
 
         .logo-version {
-          font-size: 0.6rem;
-          padding: 1px 5px;
-          background: rgba(99, 102, 241, 0.15);
-          color: #818cf8;
-          border-radius: 4px;
-          font-weight: 600;
-          letter-spacing: 0.02em;
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--muted);
+          border: 1px solid var(--rule);
+          border-radius: 2px;
+          padding: 2px 5px;
         }
 
-        /* Desktop Links */
         .nav-links {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 26px;
         }
 
-        .nav-link {
-          padding: 6px 14px;
-          font-size: 0.84rem;
-          color: var(--text-muted, rgba(255, 255, 255, 0.5));
-          text-decoration: none;
-          border-radius: 8px;
-          transition: all 0.2s ease;
-          font-weight: 450;
-          letter-spacing: 0.01em;
+        :global(.ol-nav-link) {
+          font-size: 0.875rem;
+          color: var(--graphite);
+          padding: 4px 0;
         }
 
-        .nav-link:hover {
-          color: var(--text-primary, rgba(255, 255, 255, 0.85));
-          background: var(--hover-bg, rgba(255, 255, 255, 0.05));
+        :global(.ol-nav-link:hover) {
+          color: var(--ink);
         }
 
-        .nav-link.active {
-          color: var(--text-primary, white);
-          background: var(--active-bg, rgba(255, 255, 255, 0.08));
+        :global(.ol-nav-link.active) {
+          color: var(--ink);
           font-weight: 500;
+          box-shadow: inset 0 -2px 0 var(--ink);
         }
 
-        /* Actions */
         .nav-actions {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 14px;
         }
 
-        /* ==============================
-           Premium Pill Theme Switch
-           ============================== */
-        .theme-switch {
-          position: relative;
-          width: 56px;
-          height: 28px;
-          padding: 0;
-          border: none;
-          background: none;
-          cursor: pointer;
-          -webkit-tap-highlight-color: transparent;
+        .nav-rev {
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--muted);
+          padding-right: 14px;
+          border-right: 1px solid var(--rule);
         }
 
-        .switch-track {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          border-radius: 50px;
-          background: rgba(99, 102, 241, 0.12);
-          border: 1.5px solid rgba(99, 102, 241, 0.2);
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 6px;
-          transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-          overflow: hidden;
-        }
-
-        .theme-switch:hover .switch-track {
-          border-color: rgba(99, 102, 241, 0.45);
-          background: rgba(99, 102, 241, 0.18);
-          box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
-        }
-
-        .switch-thumb {
-          position: absolute;
-          top: 3px;
-          left: 3px;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #818cf8, #6366f1);
-          box-shadow: 0 1px 4px rgba(99, 102, 241, 0.35), 0 0 8px rgba(99, 102, 241, 0.15);
-          transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease;
-          z-index: 2;
-        }
-
-        .switch-thumb.thumb-right {
-          left: calc(100% - 23px);
-          background: linear-gradient(135deg, #6366f1, #4f46e5);
-          box-shadow: 0 1px 4px rgba(99, 102, 241, 0.4), 0 0 10px rgba(99, 102, 241, 0.2);
-        }
-
-        .theme-switch:hover .switch-thumb {
-          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.5), 0 0 14px rgba(99, 102, 241, 0.25);
-          transform: scale(1.05);
-        }
-
-        .theme-switch:active .switch-thumb {
-          transform: scale(0.92);
-        }
-
-        .switch-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 16px;
-          height: 16px;
-          z-index: 1;
-          transition: color 0.3s ease, opacity 0.3s ease;
-        }
-
-        /* Dark mode: sun faded purple, moon faded behind thumb */
-        .theme-switch[data-theme-active="dark"] .sun-icon {
-          color: #a5b4fc;
-          opacity: 0.75;
-        }
-        .theme-switch[data-theme-active="dark"] .moon-icon {
-          color: #6366f1;
-          opacity: 0.4;
-        }
-
-        /* Light mode: sun faded purple, moon bolder purple */
-        .theme-switch[data-theme-active="light"] .sun-icon {
-          color: #818cf8;
-          opacity: 0.65;
-        }
-        .theme-switch[data-theme-active="light"] .moon-icon {
-          color: #4f46e5;
-          opacity: 0.8;
-        }
-
-        /* Light mode track styling */
-        :global([data-theme="light"]) .switch-track {
-          background: rgba(99, 102, 241, 0.08);
-          border-color: rgba(99, 102, 241, 0.2);
-        }
-
-        :global([data-theme="light"]) .theme-switch:hover .switch-track {
-          background: rgba(99, 102, 241, 0.12);
-          border-color: rgba(99, 102, 241, 0.35);
-        }
-
-        /* CTA */
-        .nav-cta {
+        .theme-toggle {
+          width: 32px;
+          height: 32px;
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          padding: 7px 16px;
-          background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
-          color: #a5b4fc;
-          border: 1px solid rgba(99, 102, 241, 0.2);
-          border-radius: 9px;
-          font-size: 0.82rem;
-          font-weight: 600;
-          text-decoration: none;
-          transition: all 0.25s ease;
+          justify-content: center;
+          background: transparent;
+          border: 1px solid var(--rule);
+          border-radius: 3px;
+          color: var(--graphite);
+          cursor: pointer;
+          transition: color 0.12s ease, border-color 0.12s ease;
         }
 
-        .cta-dot {
-          width: 6px;
-          height: 6px;
-          background: #22c55e;
-          border-radius: 50%;
-          animation: pulse-dot 2s infinite;
+        .theme-toggle:hover {
+          color: var(--ink);
+          border-color: var(--rule-strong);
         }
 
-        @keyframes pulse-dot {
-          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
-          50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+        :global(.ol-nav-cta) {
+          display: inline-flex;
+          align-items: center;
+          padding: 8px 14px;
+          background: var(--btn-bg);
+          color: var(--btn-fg);
+          border-radius: 3px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          white-space: nowrap;
         }
 
-        .nav-cta:hover {
-          background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.18));
-          border-color: rgba(99, 102, 241, 0.35);
-          color: #c7d2fe;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+        :global(.ol-nav-cta:hover) {
+          background: var(--graphite);
+          color: var(--btn-fg);
         }
 
-        /* Mobile Toggle */
         .mobile-toggle {
           display: none;
           align-items: center;
           justify-content: center;
-          width: 36px;
-          height: 36px;
+          width: 32px;
+          height: 32px;
           background: transparent;
-          border: 1px solid var(--glass-border);
-          border-radius: 8px;
-          color: var(--text-secondary);
+          border: 1px solid var(--rule);
+          border-radius: 3px;
+          color: var(--graphite);
           cursor: pointer;
-          transition: all 0.2s ease;
         }
 
-        .mobile-toggle:hover {
-          background: var(--hover-bg);
-          color: var(--text-primary);
-        }
-
-        /* Mobile Menu */
-        .mobile-menu {
-          display: none;
-          flex-direction: column;
-          padding: 8px 20px 16px;
-          border-top: 1px solid var(--glass-border);
+        :global(.ol-mobile-menu) {
           overflow: hidden;
+          border-top: 1px solid var(--rule);
+          background: var(--sheet);
         }
 
-        .mobile-link {
+        .mobile-menu-inner {
+          max-width: 1120px;
+          margin: 0 auto;
+          padding: 8px 24px 20px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        :global(.ol-mobile-link) {
+          padding: 11px 0;
+          font-size: 0.9375rem;
+          color: var(--graphite);
+          border-bottom: 1px solid var(--rule-soft);
+        }
+
+        :global(.ol-mobile-link.active) {
+          color: var(--ink);
+          font-weight: 500;
+        }
+
+        :global(.ol-mobile-cta) {
+          margin-top: 16px;
           padding: 12px 16px;
-          font-size: 0.88rem;
-          color: var(--text-secondary);
-          text-decoration: none;
-          border-radius: 10px;
-          transition: all 0.2s ease;
-        }
-
-        .mobile-link:hover,
-        .mobile-link.active {
-          background: var(--hover-bg);
-          color: var(--text-primary);
-        }
-
-        .mobile-cta {
-          margin-top: 8px;
-          padding: 12px 16px;
-          background: linear-gradient(135deg, #6366f1, #4f46e5);
-          color: white;
+          background: var(--btn-bg);
+          color: var(--btn-fg);
           text-align: center;
-          border-radius: 10px;
-          font-weight: 600;
-          font-size: 0.88rem;
-          text-decoration: none;
-          transition: all 0.2s ease;
+          border-radius: 3px;
+          font-weight: 500;
+          font-size: 0.9375rem;
+        }
+
+        @media (max-width: 900px) {
+          .nav-rev {
+            display: none;
+          }
         }
 
         @media (max-width: 768px) {
-          .nav-links { display: none; }
-          .mobile-toggle { display: flex; }
-          .mobile-menu { display: flex; }
-          .nav-cta { display: none; }
+          .nav-inner {
+            padding: 0 20px;
+          }
+
+          .nav-links {
+            display: none;
+          }
+
+          .mobile-toggle {
+            display: inline-flex;
+          }
+
+          :global(.ol-nav-cta) {
+            display: none;
+          }
         }
       `}</style>
     </>

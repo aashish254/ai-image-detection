@@ -1,316 +1,332 @@
 <p align="center">
-  <img src="docs/hero_banner.png" alt="OriginLayer Banner" width="100%"/>
+  <img src="docs/readme/01-landing.webp" alt="OriginLayer landing page: the specimen plate, the SYNTHETIC seal and the measurement readout" width="100%"/>
 </p>
 
-<h1 align="center">OriginLayer</h1>
-<p align="center">
-  <strong>Multi-Modal Forensic Analysis Platform for Detecting AI-Generated Images</strong>
-</p>
+# OriginLayer
+
+**Multi-modal forensic analysis for AI-generated images.**
+
+OriginLayer runs seven independent measurements over one image and issues one report. Three of
+those measurements are weighted into a verdict — a local classifier, a vision-language read and an
+in-browser frequency analysis — and the report shows each read's own confidence, status and
+latency next to the others. When the reads disagree, the verdict says so instead of hiding it.
+
+Version 2.0.0 · MIT · Next.js 14 App Router + a Python FastAPI model server.
+
+---
+
+## What you get
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0-6366f1?style=for-the-badge" alt="Version"/>
-  <img src="https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js" alt="Next.js"/>
-  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
-  <img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch"/>
-  <img src="https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge" alt="License"/>
+  <img src="docs/readme/04-report.webp" alt="Forensic report head: AI GENERATED seal at confidence 0.95, a trust line naming the disagreement, three weighted reads with meters, and the PDF and past-report actions" width="100%"/>
 </p>
 
+- **A verdict with a band, not a boolean.** Five states — `AI_GENERATED`, `LIKELY_AI`, `UNCERTAIN`,
+  `LIKELY_REAL`, `REAL` — derived from a calibrated score, plus a trust line that names the spread
+  between the reads.
+- **Seven measurements per image.** Each one is scored and timed on its own row.
+- **Attribution, when there is evidence for it.** Six generator profiles (DALL-E, Midjourney,
+  Stable Diffusion, Adobe Firefly, Google Imagen, Flux) and a watermark cascade for SynthID, C2PA
+  and Stable Diffusion marks.
+- **A spatial map.** Artifact regions are flagged with coordinates and severity rather than a
+  single whole-frame number.
+- **Reliability accounting.** Disagreement-aware calibration, epistemic uncertainty and a plain
+  recommendation: safe to report, report with the spread shown, or a person should look at it.
+- **A PDF of the report** and a local history of past examinations in your browser.
+- **Light and dark.** Same document layout in both; the theme is stored locally.
+
 <p align="center">
-  Production-grade forensic analyzer powered by frequency-domain mathematics, vision AI, and 7 novel detection algorithms. Engineered for accuracy.
+  <img src="docs/readme/11-dark-landing.webp" alt="The landing page in dark mode: same document layout, inverted tokens" width="100%"/>
 </p>
 
 ---
 
-## 📸 Screenshots
+## The seven measurements
 
-### Landing Page
+Three are weighted into the verdict. Four run alongside them and appear in the report's own
+sections. Base weights are in
+[`src/lib/dynamic-weights.ts`](src/lib/dynamic-weights.ts) and are re-scaled per run by each read's
+confidence, status and latency.
+
+| Measurement | What it does | Where it runs | Base weight |
+|---|---|---|---|
+| Local classifier | `Organika/sdxl-detector`, a ViT image classifier | Python server, `POST /classify-json` | 30% |
+| Gemini vision review | Semantic read of the whole frame — anatomy, lighting, texture, text | Google Gemini, `gemini-3-flash-preview` | 55% |
+| DCT spectra | 8×8 block frequency statistics | Browser, `src/lib/detectors/dct-analysis.ts` | 15% |
+| Watermark & metadata cascade | SynthID, C2PA and Stable Diffusion mark scanning | Server, before fusion | supporting |
+| FSFN | Fuses the frequency and spatial signals, reports domain agreement | `src/lib/frequency-spatial-fusion.ts` | supporting |
+| GAN generator fingerprint | Correlates the signal against six generator profiles | `src/lib/gan-fingerprint.ts` | supporting |
+| VPT artifact sentinel | Bounding boxes around suspected artifact regions | Python server (needs a CUDA GPU) | supporting |
+
+### Verdict thresholds
+
+The calibrated score maps to a verdict at
+[`src/app/api/analyze/route.ts:375`](src/app/api/analyze/route.ts#L375):
+
+| Calibrated score | Verdict |
+|---|---|
+| ≥ 0.80 | `AI_GENERATED` |
+| ≥ 0.60 | `LIKELY_AI` |
+| ≥ 0.40 | `UNCERTAIN` |
+| ≥ 0.25 | `LIKELY_REAL` |
+| < 0.25 | `REAL` |
+
+---
+
+## Screenshots
+
+### Examination request
+
 <p align="center">
-  <img src="docs/screenshot_landing.png" alt="Landing Page" width="90%"/>
+  <img src="docs/readme/03-upload.webp" alt="Analyze page: case metadata column, specimen dropzone, accepted formats and retention notes" width="100%"/>
 </p>
 
-### Image Upload & Forensic Scanning
+### Overview — where each score came from
+
 <p align="center">
-  <img src="docs/screenshot_upload.png" alt="Upload Page" width="45%"/>
-  <img src="docs/screenshot_scanning.png" alt="Forensic Scanning" width="45%"/>
+  <img src="docs/readme/05-overview.webp" alt="Overview tab: specimen preview, flagged findings with severity and position, and the provenance of every score" width="100%"/>
 </p>
 
-### Analysis Results & Confidence Gauge
+### Novel methods
+
 <p align="center">
-  <img src="docs/screenshot_results.png" alt="Analysis Results" width="45%"/>
-  <img src="docs/screenshot_details.png" alt="Detailed Analysis" width="45%"/>
+  <img src="docs/readme/06-novel.webp" alt="Novel methods tab: FSFN frequency and spatial scores, attention weights and the XAI summary" width="100%"/>
 </p>
 
-### GAN Fingerprint & Spatial Heatmap
+### Generator attribution
+
 <p align="center">
-  <img src="docs/screenshot_gan.png" alt="GAN Fingerprint Identification" width="45%"/>
-  <img src="docs/screenshot_heatmap.png" alt="Spatial Artifact Heatmap" width="45%"/>
+  <img src="docs/readme/07-generator.webp" alt="Generator tab: per-generator match scores and the watermark trace cascade" width="100%"/>
 </p>
 
-### Regional Distribution & Forensic Explanation
+### Spatial map
+
 <p align="center">
-  <img src="docs/screenshot_distribution.png" alt="Regional AI Distribution" width="45%"/>
-  <img src="docs/screenshot_explanation.png" alt="Forensic Explanation" width="45%"/>
+  <img src="docs/readme/08-spatial.webp" alt="Spatial map tab: artifact heatmap over the specimen with region coordinates" width="100%"/>
+</p>
+
+### Reliability
+
+<p align="center">
+  <img src="docs/readme/09-reliability.webp" alt="Reliability tab: calibration, disagreement type and the recommendation for this report" width="100%"/>
+</p>
+
+### Past reports
+
+<p align="center">
+  <img src="docs/readme/10-history.webp" alt="Past reports drawer: locally stored examinations" width="60%"/>
+</p>
+
+### Landing page specimen
+
+<p align="center">
+  <img src="docs/readme/02-specimen.webp" alt="Landing page specimen plate with the SYNTHETIC seal above a worked-example measurement readout" width="100%"/>
 </p>
 
 ---
 
-## 🔍 What is OriginLayer?
-
-OriginLayer is an AI image forensic platform that determines whether an image is **real** or **AI-generated** using a multi-layered detection pipeline. It combines watermark scanning, frequency analysis, vision-language models, and local classifiers into a single unified verdict — with explainable, coordinate-level evidence.
-
-> Unlike simple binary classifiers, OriginLayer identifies **which AI platform** generated the image (DALL-E, Midjourney, Stable Diffusion, Firefly, Gemini) and provides **spatial heatmaps** showing exactly where artifacts were detected.
-
----
-
-## ✨ Key Features
-
-<table>
-<tr>
-<td width="50%">
-
-### 🛡️ Detection Engine
-- **Cascade Watermark Detection** — SynthID, C2PA, SD watermarks
-- **GAN Fingerprint Identification** — Platform-level attribution
-- **DCT Frequency Analysis** — Spectral anomaly detection
-- **Gemini Vision LLM** — Semantic artifact analysis
-- **Local Classifier** — Organika/sdxl-detector on CPU
-
-</td>
-<td width="50%">
-
-### 🧠 Novel Research (7 Contributions)
-- **FSFN** — Frequency-Spatial Fusion Network
-- **XAI** — Explainable AI with attention maps
-- **EUQ** — Epistemic Uncertainty Quantification
-- **GFI** — GAN Fingerprint Identification
-- **DACC** — Dynamic Accuracy Cross-Calibration
-- **SAM** — Spatial Artifact Mapping
-- **DRWF** — Dynamic Reliability Weighted Fusion
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 🎨 Professional UI
-- Premium dark/light mode with animated toggle
-- Glassmorphism design system
-- Framer Motion micro-animations
-- Responsive across all devices
-
-</td>
-<td width="50%">
-
-### 📊 Forensic Output
-- Coordinate-level artifact detection
-- Interactive spatial heatmaps
-- Confidence gauge with calibration
-- Downloadable PDF forensic reports
-- Analysis history with local storage
-
-</td>
-</tr>
-</table>
-
----
-
-## 🏗️ System Architecture
+## Architecture
 
 <p align="center">
-  <img src="docs/architecture.png" alt="System Architecture" width="85%"/>
+  <img src="docs/architecture.png" alt="Architecture: watermark cascade, three parallel reads, multi-modal fusion, forensic report" width="85%"/>
 </p>
-
-The detection pipeline operates in **4 cascading layers**:
 
 ```
-Image Upload
-    │
-    ▼
-┌─────────────────────────────┐
-│  Layer 1: Watermark Scan    │  SynthID · C2PA · SD Watermark
-└──────────────┬──────────────┘
-               │
-    ┌──────────┼──────────┐
-    ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌────────┐
-│ Gemini │ │  DCT   │ │ Local  │
-│ Vision │ │  Freq  │ │Classif.│
-│  LLM   │ │Analysis│ │(SDXL)  │
-└────┬───┘ └────┬───┘ └────┬───┘
-     └──────────┼──────────┘
-                ▼
-┌─────────────────────────────┐
-│  Multi-Modal Fusion (DRWF)  │  Dynamic Reliability Weighting
-└──────────────┬──────────────┘
-               ▼
-       Forensic Report
-  (Verdict · Heatmap · PDF)
+Browser: file → data URL → POST /api/analyze
+                              │
+                    image hash · cache lookup (24 h, in-process)
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+      Local classifier   Gemini vision    DCT spectra
+      (FastAPI :8100)    (55% weight)     (in browser)
+              └───────────────┼───────────────┘
+                              ▼
+        Watermark cascade · FSFN · GAN fingerprint · VPT sentinel
+                              ▼
+              DRWF fusion → disagreement-aware calibration
+                              ▼
+              Verdict · confidence · per-read provenance
 ```
+
+The client sends the image once. The server keeps no copy of the pixels — only the hash and the
+result are cached, for 24 hours, in an in-process map of up to 100 entries
+([`src/lib/cache.ts`](src/lib/cache.ts)); an optional Redis layer sits behind the same interface.
+Analysis history lives in `localStorage` under `ai_forensic_history`.
 
 ---
 
-## 🛠️ Tech Stack
+## Novel contributions
+
+Named as they appear in [`src/app/novelty/page.tsx`](src/app/novelty/page.tsx):
+
+| | Contribution | What it adds |
+|---|---|---|
+| DRWF | Dynamic reliability-weighted fusion | Re-weights the three reads per run instead of fixing their contributions |
+| FSFN | Frequency-spatial fusion network | Combines spectral and spatial signals and reports whether the two domains agree |
+| SAM | Spatial artifact mapping | Turns whole-frame scores into positioned, severity-ranked regions |
+| GFI | GAN fingerprint identification | Attributes synthetic output to one of six generator profiles |
+| DACC | Dynamic adaptive confidence calibration | Pulls the score toward the spread between reads when they disagree |
+| EUQ | Epistemic uncertainty quantification | Separates what the system does not know from measurement noise |
+| XAI | Explainable forensic reports | Emits the findings, coordinates and reasoning behind the verdict |
+
+---
+
+## Tech stack
 
 | Layer | Technology |
-|-------|-----------|
-| **Frontend** | Next.js 14 (App Router), React 18, Framer Motion |
-| **Styling** | CSS Variables, Styled JSX, Glassmorphism Design System |
-| **ML Backend** | Python FastAPI, PyTorch, HuggingFace Transformers |
-| **Detection APIs** | Google Gemini Vision, HuggingFace Inference API |
-| **Local Models** | Organika/sdxl-detector (ViT classifier, 331MB) |
-| **Forensics** | DCT/FFT Analysis, GAN Fingerprinting, Watermark Detection |
-| **Export** | html2canvas PDF generation, localStorage history |
+|---|---|
+| Frontend | Next.js 14.2.3 (App Router), React 18, TypeScript |
+| Styling | CSS custom properties + styled-jsx, no utility framework |
+| Motion & icons | Framer Motion, lucide-react |
+| Upload & notices | react-dropzone, react-hot-toast |
+| PDF export | jsPDF — the report is laid out as text, not screenshotted |
+| Model server | Python FastAPI + Uvicorn, PyTorch, Transformers, PEFT |
+| Local models | `Organika/sdxl-detector` (ViT classifier), VPT Artifact Sentinel (Qwen2.5-VL-7B + LoRA) |
+| Vision API | Google Gemini `gemini-3-flash-preview`, with fallbacks |
 
 ---
 
-## 🚀 Quick Start
+## Quick start
 
 ### Prerequisites
 
-- **Node.js** v20+ — `brew install node` (macOS) or [nodejs.org](https://nodejs.org)
-- **Python** 3.9+ — `brew install python@3.11` (macOS)
+- **Node.js 18.17 or newer** — this was developed on 24.x
+- **Python 3.9 or newer** — for the local classifier and the sentinel server
 
-### 1. Clone & Install
+### 1. Install and configure
 
 ```bash
 git clone https://github.com/aashish254/ai-image-detection.git
 cd ai-image-detection
 npm install
-```
-
-### 2. Configure Environment
-
-```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local` with your API keys:
+Edit `.env.local`:
 
-| Variable | Required | Get it from |
-|----------|----------|-------------|
-| `HUGGINGFACE_API_TOKEN` | ✅ | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) |
-| `GOOGLE_GEMINI_API_KEY` | ✅ | [makersuite.google.com](https://makersuite.google.com/app/apikey) |
-| `VPT_SERVER_URL` | Auto | Default: `http://localhost:8100` |
+| Variable | Required | Notes |
+|---|---|---|
+| `GOOGLE_GEMINI_API_KEY` | yes | [aistudio.google.com/apikey](https://aistudio.google.com/apikey). Without it the 55%-weighted read fails and the verdict is fused from the other two. |
+| `VPT_SERVER_URL` | no | Defaults to `http://localhost:8100` |
+| `REDIS_URL` | no | Shares the 24-hour result cache across processes; without it the cache is in-memory only |
 
-### 3. Download ML Models
-
-> **Note:** Model weights (~540MB total) are hosted on [HuggingFace Hub](https://huggingface.co) — the industry standard for ML model distribution. They are **not** included in the GitHub repo due to size limits.
-
-| Model | HuggingFace Repo | Size | Purpose |
-|-------|-----------------|------|---------|
-| SDXL Detector | [`Organika/sdxl-detector`](https://huggingface.co/Organika/sdxl-detector) | 331MB | Image classifier (ViT) |
-| VPT Artifact Sentinel | [`aashish254/vpt-artifact-sentinel-v1`](https://huggingface.co/aashish254/vpt-artifact-sentinel-v1) | 208MB | Vision-language forensic model |
+### 2. Python environment and model weights
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+
+# Classifier only (any machine, including macOS):
+pip install torch torchvision transformers pillow fastapi "uvicorn[standard]" python-multipart peft accelerate
+
+# Full VPT sentinel (Linux with CUDA):
+pip install -r vpt_server/requirements.txt
+pip install "unsloth[colab-new]" bitsandbytes
+
 pip install huggingface_hub
 python scripts/download_model.py
 ```
 
-### 4. Install Python Dependencies
+`scripts/download_model.py` pulls [`Organika/sdxl-detector`](https://huggingface.co/Organika/sdxl-detector)
+(331 MB, the classifier) and
+[`aashish254/vpt-artifact-sentinel-v1`](https://huggingface.co/aashish254/vpt-artifact-sentinel-v1)
+(208 MB, the sentinel) into `local_models/`. Only the classifier is needed to run the app.
 
-```bash
-pip install torch torchvision torchaudio transformers peft accelerate \
-  pillow fastapi "uvicorn[standard]" python-multipart safetensors \
-  sentencepiece huggingface_hub tokenizers psutil
-```
+### 3. Run
 
-### 5. Run
+**Terminal 1** — model server:
 
-**Terminal 1** — ML Backend:
 ```bash
 source .venv/bin/activate && cd vpt_server && python3 server.py
 ```
 
-**Terminal 2** — Frontend:
+**Terminal 2** — app:
+
 ```bash
 npm run dev
 ```
 
-Open **http://localhost:3000** 🚀
+Open **http://localhost:3000**. Check the server first if a run looks thin:
+`curl localhost:8100/health` reports which models are loaded and on what device.
 
 ---
 
-## 💻 Platform Compatibility
+## Platform compatibility
 
-| Platform | Local Classifier | VPT Model | Notes |
-|----------|:---------------:|:---------:|-------|
-| macOS (Apple Silicon) | ✅ CPU | ⚠️ Demo | VPT requires NVIDIA CUDA |
-| Windows + NVIDIA GPU | ✅ CUDA | ✅ Full | Best experience |
-| Linux + NVIDIA GPU | ✅ CUDA | ✅ Full | Recommended for production |
-| Any (CPU only) | ✅ CPU | ⚠️ Demo | Classifier works, VPT in demo mode |
+| Platform | Local classifier | VPT sentinel |
+|---|---|---|
+| Linux or Windows with an NVIDIA GPU | CUDA | Full — returns artifact boxes |
+| macOS, Apple Silicon | CPU | Demo mode — the model needs CUDA |
+| Any CPU-only machine | CPU | Demo mode |
+
+Demo mode is not an error: the report prints *"Answered in demo mode (needs CUDA)"* on the
+sentinel line and no boxes are drawn, so the spatial map falls back to whole-frame findings.
 
 ---
 
-## 📁 Project Structure
+## Project layout
 
 ```
-originlayer/
-├── src/
-│   ├── app/                          # Next.js App Router
-│   │   ├── analyze/page.tsx          # Analysis page
-│   │   ├── api/analyze/route.ts      # Detection API endpoint
-│   │   ├── features/page.tsx         # Features showcase
-│   │   ├── working-model/page.tsx    # How it works
-│   │   ├── globals.css               # Theme system & variables
-│   │   └── page.tsx                  # Landing page
-│   │
-│   ├── components/                   # 20+ React components
-│   │   ├── AnalysisResults.tsx       # Results dashboard
-│   │   ├── ConfidenceGauge.tsx       # SVG confidence arc
-│   │   ├── ExplanationPanel.tsx      # Forensic explanation
-│   │   ├── SpatialHeatmap.tsx        # Interactive heatmap
-│   │   ├── GANIdentificationPanel.tsx# GAN fingerprint display
-│   │   ├── Navbar.tsx                # Theme toggle & nav
-│   │   └── ...
-│   │
-│   └── lib/                          # Core detection logic
-│       ├── detectors/
-│       │   ├── watermark.ts          # SynthID/C2PA/SD detection
-│       │   ├── vision-llm.ts         # Gemini Vision integration
-│       │   ├── huggingface.ts        # HF API classifier
-│       │   └── dct-analysis.ts       # Frequency domain analysis
-│       ├── fusion.ts                 # Multi-detector fusion (DRWF)
-│       ├── gradcam-analysis.ts       # Forensic report generator
-│       ├── gan-fingerprint.ts        # GAN identification
-│       ├── frequency-spatial-fusion.ts # FSFN implementation
-│       ├── uncertainty.ts            # EUQ implementation
-│       └── explainable-ai.ts         # XAI implementation
-│
-├── vpt_server/                       # Python ML backend
-│   ├── server.py                     # FastAPI server
-│   └── requirements.txt
-│
-├── local_models/                     # ML model weights (gitignored)
-├── scripts/
-│   └── download_model.py             # Model weight downloader
-├── docs/                             # Screenshots & diagrams
-└── public/                           # Static assets
+src/
+├── app/
+│   ├── page.tsx                 Landing page
+│   ├── analyze/page.tsx         Examination request and report
+│   ├── features/page.tsx        Feature index
+│   ├── novelty/page.tsx         The seven contributions
+│   ├── working-model/page.tsx   Method write-up
+│   ├── api/analyze/route.ts     Orchestration, fusion, calibration
+│   └── globals.css              Token layer and report primitives
+├── components/                  23 files; AnalysisResults, DetectorBreakdown,
+│                                ExplanationPanel, SpatialHeatmap, ArtifactViewer,
+│                                GANIdentificationPanel, NovelContributionsPanel,
+│                                TrustIndicator, MeasureRow, SpectralStrip, …
+└── lib/
+    ├── detectors/               huggingface · vision-llm · dct-analysis · watermark
+    ├── fusion.ts                DRWF fusion
+    ├── dynamic-weights.ts       Base weights and per-run reliability
+    ├── calibration.ts           Disagreement-aware calibration (DACC)
+    ├── frequency-spatial-fusion.ts  FSFN
+    ├── gan-fingerprint.ts       Six generator profiles (GFI)
+    ├── uncertainty.ts           EUQ
+    ├── explainable-ai.ts        XAI findings and attention map
+    ├── gradcam-analysis.ts      Forensic report assembly
+    ├── spatial-analysis.ts      Region mapping (SAM)
+    ├── vpt-integration.ts       Model-server client
+    ├── cache.ts                 Hash → result cache
+    ├── report.ts                Shared verdict/tone semantics for the UI
+    └── types.ts                 Detector and report contracts
+
+vpt_server/server.py             FastAPI: /health /classify-json /analyze-json
+scripts/download_model.py        Model weight downloader
+docs/                            README images and the architecture diagram
+public/specimen-synthetic.webp   The AI-generated specimen shown on the landing page
 ```
 
 ---
 
-## 🔬 How Detection Works
+## What this project does not claim
 
-1. **Watermark Cascade** — Scans for embedded digital watermarks (SynthID from Google, C2PA credentials, Stable Diffusion DWT-DCT marks). If found, this provides near-definitive evidence.
-
-2. **Vision-Language Analysis** — Gemini Vision LLM examines the image for semantic artifacts: unnatural lighting, impossible anatomy, texture inconsistencies, and AI-typical patterns.
-
-3. **Frequency Domain Analysis** — DCT spectral analysis detects statistical anomalies in frequency coefficients that are invisible to the human eye but characteristic of generative models.
-
-4. **Local Classification** — The Organika/sdxl-detector ViT model provides a fast binary classification with confidence scoring.
-
-5. **Fusion & Calibration** — All detector outputs are fused using Dynamic Reliability Weighted Fusion (DRWF), with disagreement-aware confidence calibration producing the final verdict.
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
+- **No published accuracy figure.** There is no held-out labelled benchmark behind these numbers,
+  so the report shows the reads and their disagreement rather than a headline percentage. If you
+  want an accuracy claim, measure one against a set you trust.
+- **Not a watermark reader with guaranteed coverage.** The cascade reports what it finds; "no trace"
+  means no trace, not that none was ever present.
+- **The sentinel is GPU-only.** Without CUDA, artifact boxes are unavailable and the spatial map
+  falls back to frequency findings.
+- **The cache is per-process.** Restarting `npm run dev` clears it; it is not shared between
+  instances.
 
 ---
+
+## Authors
+
+Rahul Yadav · Aashish Kumar Mahato · Bibek Gami
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 <p align="center">
-  <sub>Built with ❤️ using Next.js, Python, and advanced ML research</sub>
+  <sub>Built with Next.js, Python and frequency-domain mathematics.</sub>
 </p>

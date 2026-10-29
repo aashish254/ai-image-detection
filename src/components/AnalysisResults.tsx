@@ -2,23 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  HelpCircle,
-  Clock,
-  Zap,
-  Brain,
-  Sparkles,
-  Download,
-  History,
-  RefreshCw,
-  Sparkle
-} from 'lucide-react';
-import { AnalysisResult } from '@/lib/types';
+import { History } from 'lucide-react';
+import { AnalysisResult, ExtendedAnalysisResult } from '@/lib/types';
+import { VERDICT_TONE, scoreTone } from '@/lib/report';
 import { getVerdictLabel, formatProcessingTime } from '@/lib/utils';
-import ConfidenceGauge from './ConfidenceGauge';
 import DetectorBreakdown from './DetectorBreakdown';
 import ArtifactViewer from './ArtifactViewer';
 import ExplanationPanel from './ExplanationPanel';
@@ -29,8 +16,6 @@ import AnalysisHistory from './AnalysisHistory';
 import NovelContributionsPanel from './NovelContributionsPanel';
 import GANIdentificationPanel from './GANIdentificationPanel';
 import SpectralVisualizer from './SpectralVisualizer';
-import ImprovedGraphAnalysis from './ImprovedGraphAnalysis';
-import { ExtendedAnalysisResult } from '@/lib/types';
 
 interface AnalysisResultsProps {
   result: AnalysisResult & Partial<ExtendedAnalysisResult>;
@@ -38,12 +23,23 @@ interface AnalysisResultsProps {
   imageName?: string;
 }
 
-export default function AnalysisResults({ result, imageUrl, imageName }: AnalysisResultsProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'novel' | 'gan' | 'spatial' | 'trust'>('overview');
-  const [historyCount, setHistoryCount] = useState(0);
-  const verdictInfo = getVerdictLabel(result.verdict);
+const TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'novel', label: 'Novel methods' },
+  { key: 'gan', label: 'Generator' },
+  { key: 'spatial', label: 'Spatial map' },
+  { key: 'reliability', label: 'Reliability' },
+] as const;
 
-  // Track history count
+type TabKey = (typeof TABS)[number]['key'];
+
+export default function AnalysisResults({ result, imageUrl, imageName }: AnalysisResultsProps) {
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [historyCount, setHistoryCount] = useState(0);
+
+  const verdictInfo = getVerdictLabel(result.verdict);
+  const tone = VERDICT_TONE[result.verdict] ?? 'caution';
+
   useEffect(() => {
     const updateHistoryCount = () => {
       try {
@@ -62,740 +58,394 @@ export default function AnalysisResults({ result, imageUrl, imageName }: Analysi
     return () => window.removeEventListener('historyUpdated', updateHistoryCount);
   }, []);
 
-  const getVerdictIcon = () => {
-    switch (result.verdict) {
-      case 'AI_GENERATED':
-        return <XCircle size={24} />;
-      case 'LIKELY_AI':
-        return <AlertTriangle size={24} />;
-      case 'UNCERTAIN':
-        return <HelpCircle size={24} />;
-      case 'LIKELY_REAL':
-      case 'REAL':
-        return <CheckCircle size={24} />;
-      default:
-        return <HelpCircle size={24} />;
-    }
-  };
+  const reads = [
+    { name: 'HuggingFace classifier', read: result.detectors.huggingface },
+    { name: 'Gemini vision review', read: result.detectors.visionLLM },
+    { name: 'DCT spectra', read: result.detectors.dctAnalysis },
+  ];
 
-  const totalProcessingTime =
-    result.detectors.huggingface.processingTime +
-    result.detectors.visionLLM.processingTime +
-    result.detectors.dctAnalysis.processingTime;
+  const slowestRead = Math.max(...reads.map((r) => r.read.processingTime));
 
   return (
     <motion.div
       className="analysis-results"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35 }}
     >
-      {/* Hero Section with Verdict */}
-      <div className="results-hero">
-        <motion.div
-          className="verdict-card"
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          style={{ borderColor: verdictInfo.color }}
-        >
-          <div className="verdict-icon" style={{ color: verdictInfo.color }}>
-            {getVerdictIcon()}
-          </div>
-          <div className="verdict-content">
-            <span className="verdict-emoji">{verdictInfo.emoji}</span>
-            <h2 style={{ color: verdictInfo.color }}>{verdictInfo.label}</h2>
-            <div className="verdict-meta">
-              <span className="confidence-label">
-                Calibrated Confidence: {(result.confidence * 100).toFixed(1)}%
-              </span>
-              {result.cached && <span className="cached-badge">Cached</span>}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Quick Stats */}
-        <div className="quick-stats">
-          <div className="stat">
-            <Clock size={16} />
-            <span>{formatProcessingTime(totalProcessingTime)}</span>
-          </div>
-          <div className="stat">
-            <Zap size={16} />
-            <span>Trust: {(result.calibration.trustScore * 100).toFixed(0)}%</span>
-          </div>
-          <div className="stat">
-            <Brain size={16} />
-            <span>3 Detectors</span>
-          </div>
-          {result.spatialAnalysis.isLikelyComposite && (
-            <div className="stat warning">
-              <AlertTriangle size={16} />
-              <span>Composite</span>
-            </div>
-          )}
+      <div className="issued">
+        <div className={`stamp ${tone}`}>
+          <span className="seal">
+            <b>{verdictInfo.label.toUpperCase()}</b>
+            <span>confidence {result.confidence.toFixed(2)}</span>
+          </span>
         </div>
 
-        <ConfidenceGauge score={result.confidence} verdict={result.verdict} />
+        <p className="measure">
+          trust {result.calibration.trustScore.toFixed(2)} · read agreement{' '}
+          {result.calibration.disagreementType} · three weighted reads
+        </p>
 
-        {/* Action Buttons */}
-        <div className="action-buttons">
+        <p className="statement">{result.explanation}</p>
+
+        <div className="ro-rows">
+          {reads.map(({ name, read }) => (
+            <div className="ro-row" key={name}>
+              <span className="ro-name">{name}</span>
+              <span className="ro-meter" aria-hidden="true">
+                <i
+                  className={scoreTone(read.score)}
+                  style={{ width: `${Math.round(read.score * 100)}%` }}
+                />
+              </span>
+              <span className="ro-val">{read.score.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="ro-foot">
+          {result.cached
+            ? 'Served from the 24-hour result cache.'
+            : `Four reads ran together; the slowest took ${formatProcessingTime(slowestRead)}.`}{' '}
+          {result.spatialAnalysis.isLikelyComposite
+            ? 'The spatial read flags this image as a composite.'
+            : 'The spatial read found no boundary a pasted region would leave.'}
+        </p>
+
+        <div className="actions">
           <PDFExportButton result={result} imageUrl={imageUrl} imageName={imageName} />
 
-          {/* History Button */}
-          <AnalysisHistory triggerElement={
-            <button className="action-btn history-btn" aria-label="View History">
-              <History size={20} />
-              <span>History</span>
-              {historyCount > 0 && <span className="history-count">{historyCount}</span>}
-            </button>
-          } />
-
-          {/* Analyze Another Image Button */}
-          <button
-            className="action-btn analyze-another-btn"
-            onClick={() => window.location.reload()}
-            aria-label="Analyze Another Image"
-          >
-            <Sparkle size={20} />
-            <span>Analyze Another Image</span>
-          </button>
+          <AnalysisHistory
+            triggerElement={
+              <button className="btn btn-secondary" aria-label="Past reports">
+                <History size={16} />
+                <span>Past reports{historyCount > 0 ? ` · ${historyCount}` : ''}</span>
+              </button>
+            }
+          />
         </div>
       </div>
 
-      {/* Novel Features Badge */}
-      <div className="novel-features-banner">
-        <Sparkles size={18} />
-        <span>
-          Analysis powered by <strong>7 novel contributions</strong>:
-          FSFN • XAI • EUQ • GFI • DACC • SAM • DRWF
-        </span>
+      <div className="tabs" role="tablist">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            className={`tab ${activeTab === tab.key ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Tab Navigation */}
-      <div className="tabs-container">
-        <div className="tabs">
-          <button
-            className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            Overview
-          </button>
-          <button
-            className={`tab ${activeTab === 'novel' ? 'active' : ''}`}
-            onClick={() => setActiveTab('novel')}
-          >
-            Novel AI
-            <span className="tab-badge new">NEW</span>
-          </button>
-          <button
-            className={`tab ${activeTab === 'gan' ? 'active' : ''}`}
-            onClick={() => setActiveTab('gan')}
-          >
-            GAN Fingerprint
-            <span className="tab-badge new">NEW</span>
-          </button>
-          <button
-            className={`tab ${activeTab === 'spatial' ? 'active' : ''}`}
-            onClick={() => setActiveTab('spatial')}
-          >
-            Spatial Map
-            <span className="tab-badge">NOVEL</span>
-          </button>
-          <button
-            className={`tab ${activeTab === 'trust' ? 'active' : ''}`}
-            onClick={() => setActiveTab('trust')}
-          >
-            Trust Analysis
-            <span className="tab-badge">NOVEL</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Content */}
       <div className="tab-content">
         {activeTab === 'overview' && (
           <div className="overview-grid">
             <div className="overview-main">
               <ArtifactViewer
                 imageUrl={imageUrl}
+                marks={result.vptAnalysis?.boundingBoxes ?? []}
                 artifacts={result.artifacts}
               />
               <ExplanationPanel
-                explanation={result.explanation}
-                insights={result.insights}
                 visionAnalysis={result.detectors.visionLLM.analysis}
                 forensicReport={result.forensicReport}
               />
             </div>
-            <div className="overview-sidebar">
+            <div className="overview-side">
               <DetectorBreakdown result={result} />
             </div>
           </div>
         )}
 
         {activeTab === 'novel' && (
-          <div className="novel-content">
-            <NovelContributionsPanel
-              fsfnData={result.fsfnAnalysis ? {
-                frequencyScore: result.fsfnAnalysis.frequencyDomain.frequencyScore,
-                spatialScore: result.fsfnAnalysis.spatialDomain.spatialScore,
-                fusionScore: result.fsfnAnalysis.fusion.fusionScore,
-                domainAgreement: result.fsfnAnalysis.fusion.domainAgreement,
-                attentionWeights: {
-                  frequency: result.fsfnAnalysis.fusion.attentionWeights.frequencyWeight,
-                  spatial: result.fsfnAnalysis.fusion.attentionWeights.spatialWeight,
-                },
-                spectralFingerprint: result.fsfnAnalysis.frequencyDomain.spectralFingerprint,
-                explanation: result.fsfnAnalysis.explanation,
-              } : undefined}
-              xaiData={result.xaiAnalysis ? {
-                summary: result.xaiAnalysis.summary,
-                attentionMap: result.xaiAnalysis.attentionMap.grid,
-                regions: result.xaiAnalysis.regions,
-                keyFactors: result.xaiAnalysis.keyFactors,
-              } : undefined}
-              uncertaintyData={result.uncertaintyAnalysis ? {
-                prediction: result.uncertaintyAnalysis.prediction,
-                lowerBound: result.uncertaintyAnalysis.confidenceInterval.lower,
-                upperBound: result.uncertaintyAnalysis.confidenceInterval.upper,
-                standardDeviation: result.uncertaintyAnalysis.standardDeviation,
-                aleatoric: result.uncertaintyAnalysis.uncertaintyDecomposition.aleatoric,
-                epistemic: result.uncertaintyAnalysis.uncertaintyDecomposition.epistemic,
-                reliabilityScore: result.uncertaintyAnalysis.reliability.score,
-                reliabilityLevel: result.uncertaintyAnalysis.reliability.level,
-                humanReviewRecommended: result.uncertaintyAnalysis.reliability.humanReviewRecommended,
-                recommendation: result.uncertaintyAnalysis.reliability.reason,
-              } : undefined}
-            />
-          </div>
+          <NovelContributionsPanel
+            fsfnData={
+              result.fsfnAnalysis
+                ? {
+                    frequencyScore: result.fsfnAnalysis.frequencyDomain.frequencyScore,
+                    spatialScore: result.fsfnAnalysis.spatialDomain.spatialScore,
+                    fusionScore: result.fsfnAnalysis.fusion.fusionScore,
+                    domainAgreement: result.fsfnAnalysis.fusion.domainAgreement,
+                    attentionWeights: {
+                      frequency: result.fsfnAnalysis.fusion.attentionWeights.frequencyWeight,
+                      spatial: result.fsfnAnalysis.fusion.attentionWeights.spatialWeight,
+                    },
+                    spectralFingerprint: result.fsfnAnalysis.frequencyDomain.spectralFingerprint,
+                    explanation: result.fsfnAnalysis.explanation,
+                  }
+                : undefined
+            }
+            xaiData={
+              result.xaiAnalysis
+                ? {
+                    summary: result.xaiAnalysis.summary,
+                    attentionMap: result.xaiAnalysis.attentionMap.grid,
+                    regions: result.xaiAnalysis.regions,
+                    keyFactors: result.xaiAnalysis.keyFactors,
+                  }
+                : undefined
+            }
+            uncertaintyData={
+              result.uncertaintyAnalysis
+                ? {
+                    prediction: result.uncertaintyAnalysis.prediction,
+                    lowerBound: result.uncertaintyAnalysis.confidenceInterval.lower,
+                    upperBound: result.uncertaintyAnalysis.confidenceInterval.upper,
+                    standardDeviation: result.uncertaintyAnalysis.standardDeviation,
+                    aleatoric: result.uncertaintyAnalysis.uncertaintyDecomposition.aleatoric,
+                    epistemic: result.uncertaintyAnalysis.uncertaintyDecomposition.epistemic,
+                    reliabilityScore: result.uncertaintyAnalysis.reliability.score,
+                    reliabilityLevel: result.uncertaintyAnalysis.reliability.level,
+                    humanReviewRecommended:
+                      result.uncertaintyAnalysis.reliability.humanReviewRecommended,
+                    recommendation: result.uncertaintyAnalysis.reliability.reason,
+                  }
+                : undefined
+            }
+          />
         )}
 
         {activeTab === 'gan' && (
-          <div className="gan-content">
-            <GANIdentificationPanel
-              data={result.ganIdentification ? {
-                isAIGenerated: result.ganIdentification.isAIGenerated,
-                aiConfidence: result.ganIdentification.aiConfidence,
-                identifiedGenerator: result.ganIdentification.identifiedGenerator,
-                allMatches: result.ganIdentification.allMatches,
-                analysis: result.ganIdentification.analysis,
-                extractedFingerprint: result.ganIdentification.extractedFingerprint,
-              } : undefined}
+          <GANIdentificationPanel
+            data={
+              result.ganIdentification
+                ? {
+                    isAIGenerated: result.ganIdentification.isAIGenerated,
+                    aiConfidence: result.ganIdentification.aiConfidence,
+                    identifiedGenerator: result.ganIdentification.identifiedGenerator,
+                    allMatches: result.ganIdentification.allMatches,
+                    analysis: result.ganIdentification.analysis,
+                    extractedFingerprint: result.ganIdentification.extractedFingerprint,
+                  }
+                : undefined
+            }
+          />
+        )}
+
+        {activeTab === 'spatial' && (
+          <div className="stack">
+            <SpectralVisualizer imageBase64={imageUrl} />
+
+            <SpatialHeatmap
+              spatialAnalysis={result.spatialAnalysis}
+              imageUrl={imageUrl}
+              forensicReport={result.forensicReport}
             />
           </div>
         )}
 
-        {activeTab === 'spatial' && (
-          <div className="spatial-content">
-            {/* FFT Spectral Analysis - works on raw image, always available */}
-            <div style={{ marginBottom: 'var(--space-2xl)' }}>
-              <SpectralVisualizer imageBase64={imageUrl} />
-            </div>
-
-            {/* Improved Graph Analysis - depends on VLM spatial data */}
-            {result.spatialAnalysis.spatialDataReliable && (
-              <div style={{ marginBottom: 'var(--space-2xl)' }}>
-                <ImprovedGraphAnalysis
-                  spatialData={result.spatialAnalysis}
-                />
-              </div>
-            )}
-
-            {/* Original SAM Heatmap - depends on VLM spatial data */}
-            <div style={{ marginTop: 'var(--space-xl)' }}>
-              <SpatialHeatmap
-                spatialAnalysis={result.spatialAnalysis}
-                imageUrl={imageUrl}
-                forensicReport={result.forensicReport}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'trust' && (
-          <div className="trust-content">
+        {activeTab === 'reliability' && (
+          <div className="stack">
             <TrustIndicator calibration={result.calibration} />
 
-            {/* Dynamic Weighting Info */}
-            <motion.div
-              className="dynamic-weighting-card"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <h3>
-                <Zap size={18} />
-                Dynamic Weight Adjustment
-                <span className="novel-badge">NOVEL</span>
-              </h3>
-              <div className="weight-comparison">
-                <div className="weight-row">
-                  <span className="weight-label">Static Score:</span>
-                  <span className="weight-value">
+            <div className="weighting">
+              <p className="label">Score before and after reliability weighting</p>
+
+              <div className="ro-rows">
+                <div className="ro-row pair">
+                  <span className="ro-name">Fixed weights</span>
+                  <span className="ro-val">
                     {(result.fusion.dynamicWeighting.staticScore * 100).toFixed(1)}%
                   </span>
                 </div>
-                <div className="weight-row highlight">
-                  <span className="weight-label">Dynamic Score:</span>
-                  <span className="weight-value">
+                <div className="ro-row pair">
+                  <span className="ro-name">Reliability-weighted</span>
+                  <span className="ro-val">
                     {(result.fusion.dynamicWeighting.dynamicScore * 100).toFixed(1)}%
                   </span>
                 </div>
-                <div className="weight-row">
-                  <span className="weight-label">Difference:</span>
-                  <span className="weight-value">
-                    {((result.fusion.dynamicWeighting.dynamicScore -
-                      result.fusion.dynamicWeighting.staticScore) * 100).toFixed(1)}%
+                <div className="ro-row pair">
+                  <span className="ro-name">Change</span>
+                  <span className="ro-val">
+                    {(
+                      (result.fusion.dynamicWeighting.dynamicScore -
+                        result.fusion.dynamicWeighting.staticScore) *
+                      100
+                    ).toFixed(1)}
+                    %
                   </span>
                 </div>
               </div>
-              <p className="weight-explanation">
-                {result.fusion.dynamicWeighting.weightAdjustments}
-              </p>
-              <div className="final-weights">
-                <h4>Final Weights:</h4>
-                <div className="weights-grid">
-                  <div className="weight-item">
-                    <span className="detector-name">HuggingFace</span>
-                    <span className="detector-weight">
-                      {(result.fusion.huggingfaceWeight * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="weight-item">
-                    <span className="detector-name">Gemini Vision</span>
-                    <span className="detector-weight">
-                      {(result.fusion.visionLLMWeight * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="weight-item">
-                    <span className="detector-name">DCT Analysis</span>
-                    <span className="detector-weight">
-                      {(result.fusion.dctWeight * 100).toFixed(0)}%
-                    </span>
-                  </div>
+
+              <p className="note">{result.fusion.dynamicWeighting.weightAdjustments}</p>
+
+              <p className="label">Weights each read carried into the fusion</p>
+
+              <div className="ro-rows">
+                <div className="ro-row pair">
+                  <span className="ro-name">HuggingFace classifier</span>
+                  <span className="ro-val">
+                    {(result.fusion.huggingfaceWeight * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div className="ro-row pair">
+                  <span className="ro-name">Gemini vision review</span>
+                  <span className="ro-val">{(result.fusion.visionLLMWeight * 100).toFixed(0)}%</span>
+                </div>
+                <div className="ro-row pair">
+                  <span className="ro-name">DCT spectra</span>
+                  <span className="ro-val">{(result.fusion.dctWeight * 100).toFixed(0)}%</span>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
       </div>
 
       <style jsx>{`
-        .analysis-results {
-          max-width: 1200px;
-          margin: 0 auto;
+        /* motion.div is a custom component, so styled-jsx cannot inject its scope
+           class onto the DOM node. Declared :global with the ol- prefix instead. */
+        :global(.analysis-results) {
+          min-width: 0;
         }
 
-        .results-hero {
-          text-align: center;
-          margin-bottom: 32px;
+        .issued {
+          padding: 26px 30px 24px;
+          border-bottom: 1px solid var(--rule);
         }
 
-        .action-buttons {
+        .stamp {
+          display: inline-block;
+          padding: 2px 3px;
+        }
+
+        .stamp .seal {
+          padding: 0.75rem 1.0625rem;
+        }
+
+        .stamp .seal b {
+          font-size: 1.375rem;
+          letter-spacing: 0.02em;
+        }
+
+        .stamp .seal span {
+          font-size: 0.9375rem;
+          margin-top: 0.3125rem;
+        }
+
+        .measure {
+          margin: 18px 0 0;
+          font-family: var(--font-mono);
+          font-size: 0.9375rem;
+          color: var(--graphite);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .stamp.flagged {
+          color: var(--flagged);
+        }
+
+        .stamp.caution {
+          color: var(--caution);
+        }
+
+        .stamp.verified {
+          color: var(--verified);
+        }
+
+        .statement {
+          margin-top: 16px;
+          font-size: 1rem;
+          line-height: 1.65;
+          color: var(--graphite);
+          max-width: 68ch;
+        }
+
+        .actions {
           display: flex;
-          justify-content: center;
-          gap: 12px;
-          margin-top: 24px;
           flex-wrap: wrap;
-        }
-
-        .action-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 20px;
-          border: none;
-          border-radius: 12px;
-          font-size: 0.88rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-          position: relative;
-        }
-
-        .action-btn.history-btn {
-          background: rgba(139, 92, 246, 0.15);
-          color: #a78bfa;
-          border: 1px solid rgba(139, 92, 246, 0.25);
-        }
-
-        .action-btn.history-btn:hover {
-          transform: translateY(-2px);
-          background: rgba(139, 92, 246, 0.25);
-          box-shadow: 0 8px 30px rgba(139, 92, 246, 0.2);
-        }
-
-        .action-btn.analyze-another-btn {
-          background: rgba(34, 197, 94, 0.12);
-          color: #34d399;
-          border: 1px solid rgba(34, 197, 94, 0.2);
-        }
-
-        .action-btn.analyze-another-btn:hover {
-          transform: translateY(-2px);
-          background: rgba(34, 197, 94, 0.2);
-          box-shadow: 0 8px 30px rgba(34, 197, 94, 0.15);
-        }
-
-        .action-btn:active {
-          transform: translateY(0);
-        }
-
-        .history-count {
-          position: absolute;
-          top: -6px;
-          right: -6px;
-          background: #ef4444;
-          color: var(--text-primary);
-          font-size: 0.65rem;
-          padding: 2px 6px;
-          border-radius: 10px;
-          min-width: 18px;
-          text-align: center;
-          font-weight: 700;
-        }
-
-        .verdict-card {
-          display: inline-flex;
-          align-items: center;
-          gap: 20px;
-          padding: 24px 36px;
-          background: var(--glass-bg);
-          border: 1px solid;
-          border-radius: 20px;
-          margin-bottom: 20px;
-          backdrop-filter: blur(20px);
-        }
-
-        .verdict-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 56px;
-          height: 56px;
-          border-radius: 16px;
-          background: var(--glass-bg);
-        }
-
-        .verdict-content {
-          text-align: left;
-        }
-
-        .verdict-emoji {
-          font-size: 1.3rem;
-        }
-
-        .verdict-content h2 {
-          font-size: 1.5rem;
-          margin: 4px 0;
-        }
-
-        .verdict-meta {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .confidence-label {
-          font-size: 0.85rem;
-          color: var(--text-muted);
-        }
-
-        .cached-badge {
-          padding: 2px 8px;
-          background: rgba(99, 102, 241, 0.15);
-          color: #818cf8;
-          font-size: 0.7rem;
-          border-radius: 6px;
-          font-weight: 600;
-        }
-
-        .quick-stats {
-          display: flex;
-          justify-content: center;
-          gap: 12px;
-          margin-bottom: 24px;
-        }
-
-        .stat {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 14px;
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 100px;
-          font-size: 0.82rem;
-          color: var(--text-secondary);
-        }
-
-        .stat.warning {
-          background: rgba(245, 158, 11, 0.1);
-          border-color: rgba(245, 158, 11, 0.2);
-          color: #f59e0b;
-        }
-
-        .novel-features-banner {
-          display: flex;
-          align-items: center;
-          justify-content: center;
           gap: 10px;
-          padding: 12px 20px;
-          background: rgba(99, 102, 241, 0.06);
-          border: 1px solid rgba(99, 102, 241, 0.12);
-          border-radius: 14px;
-          margin-bottom: 24px;
-          color: var(--text-muted);
-          font-size: 0.85rem;
-        }
-
-        .novel-features-banner strong {
-          color: #a5b4fc;
-        }
-
-        .tabs-container {
-          margin-bottom: 24px;
+          margin-top: 24px;
         }
 
         .tabs {
           display: flex;
-          gap: 4px;
-          padding: 4px;
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 14px;
+          flex-wrap: wrap;
+          gap: 0 24px;
+          padding: 0 30px;
+          border-bottom: 1px solid var(--rule);
         }
 
         .tab {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 10px 16px;
-          background: transparent;
-          border: none;
-          border-radius: 10px;
-          font-size: 0.85rem;
-          color: var(--text-muted);
+          padding: 12px 0 10px;
+          margin-bottom: -1px;
+          background: none;
+          border: 0;
+          border-bottom: 2px solid transparent;
+          font-family: var(--font-mono);
+          font-size: 0.875rem;
+          color: var(--muted);
           cursor: pointer;
-          transition: all 0.25s ease;
+          transition: color var(--transition-fast), border-color var(--transition-fast);
         }
 
         .tab:hover {
-          color: var(--text-secondary);
-          background: var(--glass-bg);
+          color: var(--ink);
         }
 
         .tab.active {
-          background: rgba(99, 102, 241, 0.1);
-          color: #a5b4fc;
+          color: var(--ink);
+          border-bottom-color: var(--ink);
           font-weight: 600;
-          border: 1px solid rgba(99, 102, 241, 0.15);
         }
 
-        .tab-badge {
-          padding: 1px 6px;
-          background: rgba(99, 102, 241, 0.2);
-          color: #818cf8;
-          font-size: 0.55rem;
-          font-weight: 700;
-          border-radius: 4px;
-          letter-spacing: 0.05em;
+        .tab:focus-visible {
+          outline: 2px solid var(--focus-ring);
+          outline-offset: 2px;
         }
 
-        .tab-badge.new {
-          background: rgba(245, 158, 11, 0.15);
-          color: #f59e0b;
-          animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
-        }
-
-        .novel-content {
-          max-width: 800px;
-          margin: 0 auto;
-        }
-
-        .gan-content {
-          max-width: 700px;
-          margin: 0 auto;
+        .tab-content {
+          padding: 24px 30px 28px;
+          min-width: 0;
         }
 
         .overview-grid {
           display: grid;
-          grid-template-columns: 1fr 400px;
-          gap: 20px;
+          grid-template-columns: minmax(0, 1fr) 320px;
+          gap: 32px;
+          align-items: start;
         }
 
-        .overview-main {
+        .overview-main,
+        .overview-side,
+        .stack {
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 26px;
+          min-width: 0;
         }
 
-        .overview-sidebar {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
+        .ro-row.pair {
+          grid-template-columns: minmax(0, 1fr) 88px;
         }
 
-        .spatial-content,
-        .trust-content,
-        .technical-content {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
+        .weighting .ro-rows:first-of-type {
+          margin-top: 12px;
         }
 
-        .dynamic-weighting-card {
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 20px;
-          padding: 24px;
+        .weighting .note {
+          margin: 14px 0 24px;
+          font-size: 0.9375rem;
+          line-height: 1.55;
+          color: var(--muted);
+          max-width: 66ch;
         }
 
-        .dynamic-weighting-card h3 {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 1rem;
-          margin-bottom: 16px;
-        }
-
-        .novel-badge {
-          padding: 2px 8px;
-          background: rgba(99, 102, 241, 0.15);
-          color: #818cf8;
-          font-size: 0.6rem;
-          font-weight: 700;
-          border-radius: 6px;
-          margin-left: auto;
-          letter-spacing: 0.05em;
-        }
-
-        .weight-comparison {
-          padding: 16px;
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 12px;
-          margin-bottom: 16px;
-        }
-
-        .weight-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 6px 0;
-        }
-
-        .weight-row:not(:last-child) {
-          border-bottom: 1px solid var(--glass-border);
-        }
-
-        .weight-row.highlight {
-          font-weight: 600;
-          color: #818cf8;
-        }
-
-        .weight-label {
-          color: var(--text-muted);
-        }
-
-        .weight-explanation {
-          font-size: 0.85rem;
-          color: var(--text-muted);
-          margin-bottom: 16px;
-          line-height: 1.5;
-        }
-
-        .final-weights h4 {
-          font-size: 0.9rem;
-          margin-bottom: 10px;
-        }
-
-        .weights-grid {
-          display: flex;
-          gap: 12px;
-        }
-
-        .weight-item {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 12px;
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 12px;
-        }
-
-        .detector-name {
-          font-size: 0.72rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-        }
-
-        .detector-weight {
-          font-size: 1.3rem;
-          font-weight: 700;
-          color: #818cf8;
-        }
-
-        .raw-data-card {
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 16px;
-          padding: 24px;
-        }
-
-        .raw-data-card h3 {
-          font-size: 1rem;
-          margin-bottom: 16px;
-        }
-
-        .raw-data-card pre {
-          background: var(--glass-bg);
-          padding: 16px;
-          border-radius: 10px;
-          overflow-x: auto;
-          font-size: 0.72rem;
-          color: var(--text-muted);
-        }
-
-        @media (max-width: 992px) {
+        @media (max-width: 1040px) {
           .overview-grid {
             grid-template-columns: 1fr;
           }
+        }
 
-          .quick-stats {
-            flex-wrap: wrap;
-          }
-
-          .verdict-card {
-            flex-direction: column;
-            text-align: center;
-          }
-
-          .verdict-content {
-            text-align: center;
-          }
-
-          .tabs {
-            overflow-x: auto;
-          }
-
-          .tab {
-            flex: none;
-            white-space: nowrap;
-          }
-
-          .weights-grid {
-            flex-direction: column;
+        @media (max-width: 700px) {
+          .issued,
+          .tabs,
+          .tab-content {
+            padding-left: 20px;
+            padding-right: 20px;
           }
         }
       `}</style>

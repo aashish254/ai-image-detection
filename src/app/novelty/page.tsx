@@ -1,423 +1,181 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Sparkles, Check, X, ArrowRight, Zap, Shield, Award } from 'lucide-react';
 import Link from 'next/link';
-
 
 const contributions = [
   {
-    id: 'DRWF',
-    title: 'Dynamic Reliability Weighted Fusion',
-    problem: 'Traditional ensemble methods use fixed weights that don\'t adapt to image characteristics.',
-    solution: 'DRWF dynamically adjusts each detector\'s influence based on its historical reliability and per-image confidence metrics.',
-    impact: 'Reduces false positives by 40% on adversarial inputs compared to static ensembles.',
+    abbr: 'DRWF',
+    title: 'Dynamic reliability-weighted fusion',
+    problem: 'Ensembles apply fixed weights to every detector, so a module that errors, falls back or answers slowly moves the verdict exactly as much as one that returned clean.',
+    solution: 'Each read is scored for this image on its own internal confidence, its response status and its latency, and that reliability scales its base weight before the scores are combined.',
+    impact: 'A failed read is down-weighted instead of voting. The weights change per image rather than per release.',
   },
   {
-    id: 'FSFN',
-    title: 'Frequency-Spatial Fusion Network',
-    problem: 'Single-domain detectors miss artifacts that span both frequency and spatial domains.',
-    solution: 'FSFN jointly analyzes DCT frequency coefficients and spatial pixel patterns through a dual-branch architecture.',
-    impact: 'Catches generation artifacts invisible to single-domain analysis.',
+    abbr: 'FSFN',
+    title: 'Frequency-spatial fusion network',
+    problem: 'Frequency-only and pixel-only detectors each miss artifacts that only appear when the two are compared, and the gap is not visible from either side alone.',
+    solution: 'DCT block spectra and spatial gradient statistics are measured over the same image and combined into one fusion score, which then carries its own weight into the verdict.',
+    impact: 'Adds a signal the classifier and the DCT read do not produce on their own.',
   },
   {
-    id: 'SAM',
-    title: 'Spatial Artifact Mapping',
-    problem: 'Existing detectors provide a single "fake/real" label without localization.',
-    solution: 'SAM produces coordinate-level artifact maps showing exactly where AI artifacts appear in the image.',
-    impact: 'Enables forensic investigators to verify and explain detections spatially.',
+    abbr: 'SAM',
+    title: 'Spatial artifact mapping',
+    problem: 'A binary real-or-fake label cannot be checked. Nothing in the output can be compared against the picture it describes.',
+    solution: 'Detected artifacts are projected onto image coordinates and drawn over the specimen, so each claim points at a region of the file it came from.',
+    impact: 'The heatmap is evidence a reader can verify or dispute, not decoration.',
   },
   {
-    id: 'GFI',
-    title: 'GAN Fingerprint Identification',
-    problem: 'Knowing an image is AI-generated doesn\'t reveal which generator produced it.',
-    solution: 'GFI matches spectral fingerprints against known generator profiles (DALL·E, Midjourney, Stable Diffusion, Gemini).',
-    impact: 'Source attribution enables provenance tracking and supply chain transparency.',
+    abbr: 'GFI',
+    title: 'GAN fingerprint identification',
+    problem: 'Knowing an image is synthetic says nothing about which generator produced it, which is the question provenance work actually asks.',
+    solution: 'The image\u2019s eight-band spectral signature, color profile and texture statistics are scored against six stored generator profiles: DALL\u00b7E, Midjourney, Stable Diffusion, Adobe Firefly, Google Imagen and Flux.',
+    impact: 'A source is named only for an image already scored synthetic. Otherwise the field is returned empty.',
   },
   {
-    id: 'DACC',
-    title: 'Dynamic Adaptive Confidence Calibration',
-    problem: 'Raw model outputs are often overconfident or poorly calibrated.',
-    solution: 'DACC adjusts confidence scores in real-time based on cross-detector agreement and image signal quality.',
-    impact: 'Produces calibrated probabilities that users can actually trust.',
+    abbr: 'DACC',
+    title: 'Dynamic adaptive confidence calibration',
+    problem: 'Raw classifier output is routinely overconfident, and a number straight out of a model reads like a probability when it is not one.',
+    solution: 'The fused score is recalibrated against detector agreement, and the result carries a trust score and a named disagreement type alongside it.',
+    impact: 'The number shown beside a verdict is calibrated, not the model\u2019s own logits.',
   },
   {
-    id: 'EUQ',
-    title: 'Epistemic Uncertainty Quantification',
-    problem: 'Systems never say "I don\'t know" — high confidence regardless of input difficulty.',
-    solution: 'EUQ measures model uncertainty and transparently communicates reliability of each prediction.',
-    impact: 'Users can distinguish between confident detections and uncertain assessments.',
+    abbr: 'EUQ',
+    title: 'Epistemic uncertainty quantification',
+    problem: 'Detection systems answer with equal confidence whether the reads agree or contradict each other, so an unsure run is indistinguishable from a sure one.',
+    solution: 'The spread between the weighted reads is computed as a standard deviation and published as a \u00b1 band beside the verdict.',
+    impact: 'A 0.51 from five disagreeing modules does not display like a 0.51 from seven agreeing ones.',
   },
   {
-    id: 'XAI',
-    title: 'Explainable AI Forensic Reports',
-    problem: 'Black-box detection offers no insight into why a verdict was reached.',
-    solution: 'Every verdict includes a structured forensic report with evidence, reasoning, and coordinate references.',
-    impact: 'Bridges the gap between AI classification and human understanding.',
+    abbr: 'XAI',
+    title: 'Explainable forensic reports',
+    problem: 'Black-box detection hands the user a verdict with no reasoning attached, which is useless in any review that has to be defended.',
+    solution: 'Every report ships the measurements that produced the verdict, each region\u2019s reasoning text, the attribution and the uncertainty band.',
+    impact: 'A reader can reconstruct why the answer was given, from the same page.',
   },
 ];
 
-const comparisonPoints = [
-  { feature: 'Multi-modal detection', legacy: false, ours: true },
-  { feature: 'Coordinate-level localization', legacy: false, ours: true },
-  { feature: 'Source generator identification', legacy: false, ours: true },
-  { feature: 'Explainable reports', legacy: false, ours: true },
-  { feature: 'Confidence calibration', legacy: false, ours: true },
-  { feature: 'Uncertainty quantification', legacy: false, ours: true },
-  { feature: 'Real-time analysis', legacy: true, ours: true },
-  { feature: 'Basic classification', legacy: true, ours: true },
+const matrix = [
+  { m: 'Real-or-fake classification', prior: true, here: true },
+  { m: 'Answers in seconds', prior: true, here: true },
+  { m: 'Weights that move per image', prior: false, here: true },
+  { m: 'Frequency and spatial in one pass', prior: false, here: true },
+  { m: 'Artifact coordinates', prior: false, here: true },
+  { m: 'Generator named as the source', prior: false, here: true },
+  { m: 'Calibrated confidence', prior: false, here: true },
+  { m: 'Uncertainty published', prior: false, here: true },
+  { m: 'Reasoning in the output', prior: false, here: true },
 ];
 
 export default function NoveltyPage() {
   return (
-    <div className="page-wrapper">
+    <div className="page">
+      <div className="container report-grid">
+        <dl className="case-meta">
+          <dt>contributions</dt>
+          <dd>Seven</dd>
+          <dt>revised</dt>
+          <dd>2026-05-16</dd>
+        </dl>
 
-
-      <main className="main">
-        {/* Header */}
-        <motion.div
-          className="page-header"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="header-badge">
-            <Award size={14} />
-            <span>Research Contributions</span>
+        <div className="body">
+          <div className="head">
+            <h1>What this work adds.</h1>
+            <p className="lede">
+              Seven contributions, each stated as the problem it answers, the mechanism in this
+              pipeline, and what changes in the report because of it. Every claim here is about the
+              code in this repository, not about a benchmark.
+            </p>
           </div>
-          <h1>
-            What Makes
-            <span className="gradient-text"> OriginLayer Novel</span>
-          </h1>
-          <p>
-            Seven distinct contributions that advance the state-of-the-art
-            in AI-generated content detection.
-          </p>
-        </motion.div>
-
-        {/* Contributions */}
-        <div className="contributions">
-          {contributions.map((contrib, i) => (
-            <motion.div
-              key={i}
-              className="contrib-card"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-30px' }}
-              transition={{ delay: i * 0.05, duration: 0.5 }}
-              whileHover={{
-                y: -4,
-                borderColor: 'rgba(99, 102, 241, 0.2)',
-                boxShadow: '0 16px 50px rgba(99, 102, 241, 0.08)',
-              }}
-            >
-              <div className="contrib-header">
-                <span className="contrib-id">{contrib.id}</span>
-                <h3>{contrib.title}</h3>
-              </div>
-              <div className="contrib-grid">
-                <div className="contrib-block problem">
-                  <span className="block-label">Problem</span>
-                  <p>{contrib.problem}</p>
-                </div>
-                <div className="contrib-block solution">
-                  <span className="block-label">Solution</span>
-                  <p>{contrib.solution}</p>
-                </div>
-                <div className="contrib-block impact">
-                  <span className="block-label">Impact</span>
-                  <p>{contrib.impact}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
         </div>
 
-        {/* Comparison Table */}
-        <motion.div
-          className="comparison-section"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <h3>OriginLayer vs Legacy Detectors</h3>
-          <div className="comparison-table">
-            <div className="table-header">
-              <span>Capability</span>
-              <span>Legacy</span>
-              <span>OriginLayer</span>
-            </div>
-            {comparisonPoints.map((point, i) => (
-              <motion.div
-                key={i}
-                className="table-row"
-                initial={{ opacity: 0, x: -10 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.04 }}
-              >
-                <span className="row-feature">{point.feature}</span>
-                <span className="row-check">
-                  {point.legacy ? (
-                    <Check size={16} className="check-yes" />
-                  ) : (
-                    <X size={16} className="check-no" />
-                  )}
-                </span>
-                <span className="row-check">
-                  {point.ours ? (
-                    <Check size={16} className="check-yes accent" />
-                  ) : (
-                    <X size={16} className="check-no" />
-                  )}
-                </span>
-              </motion.div>
+        <section className="report-section">
+          <div className="report-section-head">
+            <span className="idx">01</span>
+            <h2>Contributions</h2>
+            <p className="note">
+              Listed in the order they appear in the run; stage order is on the{' '}
+              <Link href="/working-model">method page</Link>.
+            </p>
+          </div>
+
+          <div className="doc-entries">
+            {contributions.map((c) => (
+              <div className="doc-entry" key={c.abbr}>
+                <span className="ab">{c.abbr}</span>
+                <div>
+                  <h3>{c.title}</h3>
+                  <div className="doc-fields">
+                    <div>
+                      <span className="fl">problem</span>
+                      <span className="fv dim">{c.problem}</span>
+                    </div>
+                    <div>
+                      <span className="fl">mechanism</span>
+                      <span className="fv">{c.solution}</span>
+                    </div>
+                    <div>
+                      <span className="fl">effect</span>
+                      <span className="fv">{c.impact}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
-        </motion.div>
+        </section>
 
-        {/* CTA */}
-        <motion.div
-          className="cta"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-        >
-          <Link href="/analyze" className="cta-btn">
-            <Zap size={18} />
-            Try the Analysis
-            <ArrowRight size={16} />
+        <section className="report-section">
+          <div className="report-section-head">
+            <span className="idx">02</span>
+            <h2>Against what is already standard</h2>
+            <p className="note">
+              A tick under &ldquo;standard&rdquo; means the capability is ordinary in an off-the-shelf
+              detector; a tick under &ldquo;here&rdquo; means this pipeline implements it.
+            </p>
+          </div>
+          <div className="doc-matrix">
+            <div className="mh">
+              <span>capability</span>
+              <span>standard</span>
+              <span>here</span>
+            </div>
+            {matrix.map((r) => (
+              <div className="mr" key={r.m}>
+                <span>{r.m}</span>
+                <span className={r.prior ? 'yes' : 'no'}>{r.prior ? 'yes' : '\u2014'}</span>
+                <span className={r.here ? 'yes' : 'no'}>{r.here ? 'yes' : '\u2014'}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="byline">
+          <span>
+            The claim is the <strong>mechanism</strong>, not a score
+          </span>
+          <Link href="/analyze" className="btn btn-secondary">
+            Examine an image
           </Link>
-        </motion.div>
-      </main>
+          <span className="r">novelty</span>
+        </div>
+      </div>
 
       <style jsx>{`
-        .page-wrapper {
-          min-height: 100vh;
-          background: var(--bg-primary);
-          color: white;
+        .report-grid {
+          padding-top: 44px;
         }
 
-        .main {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 160px 40px 100px;
-          position: relative;
-          z-index: 2;
+        h1 {
+          font-size: clamp(2rem, 3.2vw, 2.5rem);
         }
 
-        .page-header {
-          text-align: center;
-          margin-bottom: 72px;
+        .body {
+          min-width: 0;
         }
 
-        .header-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 16px;
-          background: rgba(99, 102, 241, 0.1);
-          border: 1px solid rgba(99, 102, 241, 0.2);
-          border-radius: 100px;
-          font-size: 0.78rem;
-          color: #818cf8;
-          margin-bottom: 24px;
-          font-weight: 500;
-        }
-
-        .page-header h1 {
-          font-size: clamp(2.5rem, 5vw, 3.8rem);
-          font-weight: 700;
-          line-height: 1.1;
-          margin-bottom: 16px;
-          letter-spacing: -0.02em;
-        }
-
-        .gradient-text {
-          background: linear-gradient(135deg, #a5b4fc, #6366f1);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-
-        .page-header p {
-          font-size: 1.1rem;
-          color: var(--text-muted);
-          max-width: 500px;
-          margin: 0 auto;
-          line-height: 1.6;
-        }
-
-        .contributions {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          margin-bottom: 80px;
-        }
-
-        .contrib-card {
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 20px;
-          padding: 28px;
-          transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .contrib-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .contrib-id {
-          font-size: 0.65rem;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          padding: 4px 10px;
-          background: rgba(99,102,241,0.12);
-          color: #818cf8;
-          border-radius: 6px;
-          border: 1px solid rgba(99,102,241,0.2);
-        }
-
-        .contrib-header h3 {
-          font-size: 1.1rem;
-          font-weight: 600;
-        }
-
-        .contrib-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-        }
-
-        .contrib-block {
-          padding: 14px;
-          border-radius: 12px;
-          background: var(--glass-bg);
-          border: 1px solid rgba(255,255,255,0.04);
-        }
-
-        .block-label {
-          display: block;
-          font-size: 0.65rem;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          margin-bottom: 6px;
-        }
-
-        .problem .block-label { color: #f87171; }
-        .solution .block-label { color: #34d399; }
-        .impact .block-label { color: #818cf8; }
-
-        .contrib-block p {
-          font-size: 0.82rem;
-          color: var(--text-muted);
-          line-height: 1.5;
-        }
-
-        /* Comparison */
-        .comparison-section {
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 20px;
-          padding: 32px;
-          margin-bottom: 60px;
-        }
-
-        .comparison-section h3 {
-          font-size: 1.3rem;
-          font-weight: 600;
-          margin-bottom: 20px;
-          text-align: center;
-        }
-
-        .table-header, .table-row {
-          display: grid;
-          grid-template-columns: 1fr 100px 100px;
-          gap: 12px;
-          align-items: center;
-          padding: 10px 16px;
-        }
-
-        .table-header {
-          font-size: 0.75rem;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          color: var(--text-muted);
-          border-bottom: 1px solid var(--glass-border);
-        }
-
-        .table-header span:not(:first-child) {
-          text-align: center;
-        }
-
-        .table-row {
-          border-bottom: 1px solid rgba(255,255,255,0.03);
-          font-size: 0.88rem;
-        }
-
-        .row-feature {
-          color: rgba(255,255,255,0.7);
-        }
-
-        .row-check {
-          display: flex;
-          justify-content: center;
-        }
-
-        :global(.check-yes) {
-          color: #22c55e;
-        }
-
-        :global(.check-yes.accent) {
-          color: #818cf8;
-        }
-
-        :global(.check-no) {
-          color: rgba(255,255,255,0.15);
-        }
-
-        /* CTA */
-        .cta {
-          display: flex;
-          justify-content: center;
-        }
-
-        .cta-btn {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 14px 28px;
-          background: linear-gradient(135deg, #6366f1, #4f46e5);
-          color: white;
-          border-radius: 14px;
-          font-size: 0.95rem;
-          font-weight: 600;
-          text-decoration: none;
-          box-shadow: 0 8px 30px rgba(99, 102, 241, 0.3);
-          transition: all 0.3s ease;
-        }
-
-        .cta-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 40px rgba(99, 102, 241, 0.45);
-        }
-
-        @media (max-width: 768px) {
-          .main {
-            padding: 140px 20px 60px;
-          }
-
-          .contrib-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .table-header, .table-row {
-            grid-template-columns: 1fr 60px 80px;
-            font-size: 0.8rem;
+        @media (max-width: 900px) {
+          .report-grid {
+            padding-top: 32px;
           }
         }
       `}</style>

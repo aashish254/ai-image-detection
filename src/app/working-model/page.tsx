@@ -1,335 +1,202 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import {
-  Upload, Scan, Brain, Layers, FileText,
-  ArrowDown, CheckCircle, Sparkles, Cpu, Eye, BarChart3
-} from 'lucide-react';
+import Link from 'next/link';
 
-
-const steps = [
+const stages = [
   {
-    icon: <Upload size={22} />,
-    title: 'Image Ingestion',
-    description: 'The uploaded image is validated, decoded, and prepared for analysis. Base64 encoding is used for API transmission while preserving all pixel data.',
-    details: ['Format validation (JPG, PNG, WebP)', 'Size validation (≤10MB)', 'Base64 encoding for API pipeline'],
-    color: '#6366f1',
+    title: 'Intake and cache check',
+    body: 'The file is decoded, its bytes hashed, and the hash looked up in the result cache. A specimen measured in the last 24 hours is returned from cache instead of being run again.',
+    details: [
+      'JPG, PNG and WebP accepted',
+      '10 MB ceiling on the file, checked in the browser',
+      'SHA-256 of the encoded bytes, keyed to the result',
+      'Image bytes are never written to disk',
+    ],
+    where: 'src/app/api/analyze/route.ts · src/lib/cache.ts',
   },
   {
-    icon: <Scan size={22} />,
-    title: 'DCT Frequency Analysis',
-    description: 'Discrete Cosine Transform decomposes the image into frequency components. AI-generated images exhibit distinct spectral signatures that differ from natural photographs.',
-    details: ['8×8 block DCT decomposition', 'High-frequency artifact detection', 'JPEG compression artifact analysis', 'Spectral energy distribution mapping'],
-    color: '#8b5cf6',
+    title: 'Four parallel reads',
+    body: 'The classifier, the vision model, the frequency measurement and the watermark cascade are fired together. None of them sees another\u2019s output before it returns.',
+    details: [
+      'HuggingFace classifier',
+      'Gemini vision review',
+      'DCT spectra, 8\u00d78 blocks',
+      'Watermark and metadata cascade',
+    ],
+    where: 'src/lib/detectors · huggingface, vision-llm, dct, watermark',
   },
   {
-    icon: <Cpu size={22} />,
-    title: 'CLIP Embedding Analysis',
-    description: 'The image is passed through a CLIP-based classifier that has been trained to distinguish AI-generated content from authentic photographs in embedding space.',
-    details: ['CLIP ViT-L/14 feature extraction', 'Cosine similarity scoring', 'Multi-label classification', 'Embedding space distance analysis'],
-    color: '#06b6d4',
+    title: 'Cascade override',
+    body: 'Watermarks and provenance metadata are treated as definitive. If the cascade finds a visible generator mark, a SynthID trace or a C2PA signature, that evidence raises the classifier\u2019s score before fusion rather than averaging against it.',
+    details: [
+      'Generator watermark match',
+      'SynthID trace reported by the vision read',
+      'C2PA and metadata signatures',
+    ],
+    where: 'src/app/api/analyze/route.ts',
   },
   {
-    icon: <Eye size={22} />,
-    title: 'Gemini Vision LLM',
-    description: 'Google\'s Gemini 2.0 Flash model performs semantic analysis, examining the image for logical inconsistencies, anatomical errors, and contextual anomalies.',
-    details: ['Semantic consistency evaluation', 'Anatomical plausibility checks', 'Contextual artifact detection', 'Natural language reasoning output'],
-    color: '#22c55e',
+    title: 'Fusion and calibration',
+    body: 'Reliability-weighted fusion scores each read on its own confidence, response status and latency, then combines them. The fused number is calibrated before it can become a verdict.',
+    details: [
+      'Reliability = confidence, status, latency',
+      'Error and fallback reads down-weighted',
+      'Calibrated score, trust and disagreement',
+      'Epistemic uncertainty as a \u00b1 band',
+    ],
+    where: 'src/lib/fusion.ts · src/lib/dynamic-weights.ts',
   },
   {
-    icon: <Layers size={22} />,
-    title: 'DRWF Fusion Engine',
-    description: 'Dynamic Reliability Weighted Fusion combines all detector outputs, weighting each by its historical reliability and internal confidence for a unified verdict.',
-    details: ['Per-detector confidence weighting', 'Cross-detector agreement analysis', 'Dynamic weight adjustment', 'Epistemic uncertainty quantification'],
-    color: '#f59e0b',
+    title: 'Attribution passes',
+    body: 'With a verdict in hand, three passes ask what produced the image and where the evidence sits: frequency-spatial fusion, generator fingerprint matching, and the artifact sentinel cross-checked against the DCT measurement.',
+    details: [
+      'FSFN frequency-spatial fusion',
+      'GAN generator fingerprint',
+      'VPT artifact sentinel',
+      'DCT cross-verification of regions',
+    ],
+    where: 'src/lib · frequency-spatial-fusion, gan-fingerprint, vpt',
   },
   {
-    icon: <FileText size={22} />,
-    title: 'Forensic Report Generation',
-    description: 'A comprehensive human-readable report is generated with coordinate-level artifact locations, GAN fingerprint identification, and explainable reasoning.',
-    details: ['Coordinate-based artifact mapping', 'GAN source identification', 'Spatial heatmap visualization', 'Confidence calibration (DACC)'],
-    color: '#ec4899',
+    title: 'Report',
+    body: 'The last stage writes the explanation: artifact regions with image coordinates, per-region reasoning, the source attribution and the uncertainty band, assembled into the forensic report the page renders.',
+    details: [
+      'Coordinate-level artifact regions',
+      'Per-region reasoning text',
+      'Generator attribution',
+      'Verdict, confidence and \u00b1 band',
+    ],
+    where: 'src/lib/explainable-ai.ts · gradcam-analysis.ts',
   },
 ];
 
 export default function WorkingModelPage() {
   return (
-    <div className="page-wrapper">
+    <div className="page">
+      <div className="container report-grid">
+        <dl className="case-meta">
+          <dt>stages</dt>
+          <dd>Six, in run order</dd>
+          <dt>revised</dt>
+          <dd>2026-05-16</dd>
+        </dl>
 
-
-      <main className="main">
-        {/* Header */}
-        <motion.div
-          className="page-header"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="header-badge">
-            <BarChart3 size={14} />
-            <span>Detection Pipeline</span>
+        <div className="body">
+          <div className="head">
+            <h1>How the examination runs.</h1>
+            <p className="lede">
+              Six stages, in the order the analyze route executes them. Reads happen together, the
+              verdict is formed after them, and attribution runs last.
+            </p>
           </div>
-          <h1>
-            How
-            <span className="gradient-text"> OriginLayer Works</span>
-          </h1>
-          <p>
-            A 6-stage forensic pipeline that analyzes images through multiple
-            independent detection methods before fusion and report generation.
-          </p>
-        </motion.div>
-
-        {/* Pipeline Steps */}
-        <div className="pipeline">
-          {steps.map((step, i) => (
-            <div key={i} className="pipeline-item">
-              <motion.div
-                className="step-card"
-                initial={{ opacity: 0, x: i % 2 === 0 ? -30 : 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                whileHover={{
-                  borderColor: `${step.color}33`,
-                  boxShadow: `0 16px 50px ${step.color}12`,
-                }}
-              >
-                <div className="step-top-line" style={{ background: `linear-gradient(90deg, ${step.color}, transparent)` }} />
-                <div className="step-header">
-                  <div className="step-icon" style={{ color: step.color, background: `${step.color}12`, borderColor: `${step.color}25` }}>
-                    {step.icon}
-                  </div>
-                  <div className="step-number" style={{ color: step.color, background: `${step.color}10` }}>
-                    {String(i + 1).padStart(2, '0')}
-                  </div>
-                </div>
-                <h3>{step.title}</h3>
-                <p className="step-desc">{step.description}</p>
-                <div className="step-details">
-                  {step.details.map((detail, j) => (
-                    <div key={j} className="detail-item">
-                      <CheckCircle size={13} style={{ color: step.color, flexShrink: 0 }} />
-                      <span>{detail}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-
-              {/* Connector */}
-              {i < steps.length - 1 && (
-                <motion.div
-                  className="connector"
-                  initial={{ opacity: 0, scaleY: 0 }}
-                  whileInView={{ opacity: 1, scaleY: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <ArrowDown size={18} />
-                </motion.div>
-              )}
-            </div>
-          ))}
         </div>
 
-        {/* Summary */}
-        <motion.div
-          className="summary-card"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <Sparkles size={20} />
-          <div>
-            <h4>End-to-End Analysis</h4>
-            <p>The complete pipeline executes in under 5 seconds, returning a forensic-grade analysis with coordinate-level artifact detection and source attribution.</p>
+        <section className="report-section">
+          <div className="report-section-head">
+            <span className="idx">01</span>
+            <h2>Stages</h2>
+            <p className="note">
+              Module-by-module index on the{' '}
+              <Link href="/features">capabilities page</Link>.
+            </p>
           </div>
-        </motion.div>
-      </main>
+
+          <div className="doc-entries">
+            {stages.map((s, i) => (
+              <div className="doc-entry" key={s.title}>
+                <span className="ab">{String(i + 1).padStart(2, '0')}</span>
+                <div>
+                  <h3>{s.title}</h3>
+                  <p>{s.body}</p>
+                  <ul className="doc-ticks">
+                    {s.details.map((d) => (
+                      <li key={d}>{d}</li>
+                    ))}
+                  </ul>
+                  <p className="k">{s.where}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="report-section">
+          <div className="report-section-head">
+            <span className="idx">02</span>
+            <h2>Constraints on this run</h2>
+            <p className="note">Four limits a reader should know before trusting a report.</p>
+          </div>
+          <div className="doc-list">
+            <div className="doc-item">
+              <span className="ab">cache</span>
+              <div>
+                <b>Same bytes, same answer</b>
+                <p>
+                  The same bytes uploaded twice inside 24 hours return the stored result.
+                  Measurements are not re-run, so a verdict cannot drift between attempts.
+                </p>
+              </div>
+            </div>
+            <div className="doc-item">
+              <span className="ab">loader</span>
+              <div>
+                <b>No progress to report mid-run</b>
+                <p>
+                  The route answers with one payload when the last stage finishes. The waiting
+                  screen lists the seven measurements as pending and does not invent a percentage.
+                </p>
+              </div>
+            </div>
+            <div className="doc-item">
+              <span className="ab">storage</span>
+              <div>
+                <b>No server-side copy of the image</b>
+                <p>
+                  Bytes are decoded, measured and dropped. The cache holds a hash and the numbers,
+                  not the picture.
+                </p>
+              </div>
+            </div>
+            <div className="doc-item">
+              <span className="ab">errors</span>
+              <div>
+                <b>No silent failure</b>
+                <p>
+                  A read that errors is reported with its status and carries a small weight; the
+                  verdict names the disagreement rather than hiding it.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="byline">
+          <span>
+            Runs in <strong>six stages</strong>, answers in one report
+          </span>
+          <Link href="/novelty" className="btn btn-secondary">
+            What is novel about it
+          </Link>
+          <span className="r">method</span>
+        </div>
+      </div>
 
       <style jsx>{`
-        .page-wrapper {
-          min-height: 100vh;
-          background: var(--bg-primary);
-          color: white;
+        .report-grid {
+          padding-top: 44px;
         }
 
-        .main {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 160px 40px 100px;
-          position: relative;
-          z-index: 2;
+        h1 {
+          font-size: clamp(2rem, 3.2vw, 2.5rem);
         }
 
-        .page-header {
-          text-align: center;
-          margin-bottom: 72px;
+        .body {
+          min-width: 0;
         }
 
-        .header-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 16px;
-          background: rgba(99, 102, 241, 0.1);
-          border: 1px solid rgba(99, 102, 241, 0.2);
-          border-radius: 100px;
-          font-size: 0.78rem;
-          color: #818cf8;
-          margin-bottom: 24px;
-          font-weight: 500;
-        }
-
-        .page-header h1 {
-          font-size: clamp(2.5rem, 5vw, 3.8rem);
-          font-weight: 700;
-          line-height: 1.1;
-          margin-bottom: 16px;
-          letter-spacing: -0.02em;
-        }
-
-        .gradient-text {
-          background: linear-gradient(135deg, #a5b4fc, #6366f1);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-
-        .page-header p {
-          font-size: 1.1rem;
-          color: var(--text-muted);
-          max-width: 550px;
-          margin: 0 auto;
-          line-height: 1.6;
-        }
-
-        .pipeline {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0;
-          margin-bottom: 60px;
-        }
-
-        .pipeline-item {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .step-card {
-          position: relative;
-          width: 100%;
-          background: var(--glass-bg);
-          border: 1px solid var(--glass-border);
-          border-radius: 20px;
-          padding: 28px;
-          transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-          overflow: hidden;
-        }
-
-        .step-top-line {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-
-        .step-card:hover .step-top-line {
-          opacity: 1;
-        }
-
-        .step-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-        }
-
-        .step-icon {
-          width: 44px;
-          height: 44px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 12px;
-          border: 1px solid;
-        }
-
-        .step-number {
-          font-size: 0.75rem;
-          font-weight: 700;
-          font-variant-numeric: tabular-nums;
-          padding: 6px 12px;
-          border-radius: 8px;
-          letter-spacing: 0.05em;
-        }
-
-        .step-card h3 {
-          font-size: 1.15rem;
-          font-weight: 600;
-          margin-bottom: 8px;
-        }
-
-        .step-desc {
-          font-size: 0.9rem;
-          color: var(--text-muted);
-          line-height: 1.6;
-          margin-bottom: 16px;
-        }
-
-        .step-details {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .detail-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.82rem;
-          color: rgba(255,255,255,0.55);
-        }
-
-        .connector {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 12px 0;
-          color: rgba(255,255,255,0.15);
-        }
-
-        .summary-card {
-          display: flex;
-          gap: 16px;
-          align-items: flex-start;
-          padding: 24px;
-          background: rgba(99,102,241,0.06);
-          border: 1px solid rgba(99,102,241,0.12);
-          border-radius: 16px;
-          color: #818cf8;
-        }
-
-        .summary-card h4 {
-          font-size: 1rem;
-          font-weight: 600;
-          color: white;
-          margin-bottom: 4px;
-        }
-
-        .summary-card p {
-          font-size: 0.88rem;
-          color: var(--text-muted);
-          line-height: 1.5;
-        }
-
-        @media (max-width: 768px) {
-          .main {
-            padding: 140px 20px 60px;
+        @media (max-width: 900px) {
+          .report-grid {
+            padding-top: 32px;
           }
         }
       `}</style>
