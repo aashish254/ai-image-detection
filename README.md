@@ -128,8 +128,16 @@ The calibrated score maps to a verdict at
 ## Architecture
 
 <p align="center">
-  <img src="docs/architecture.png" alt="Architecture: watermark cascade, three parallel reads, multi-modal fusion, forensic report" width="85%"/>
+  <img src="docs/architecture-components.png" alt="Component view: client layer, FastAPI orchestration, multi-modal forensic AI core with the decision logic engine, and data persistence" width="100%"/>
 </p>
+
+<p align="center">
+  <img src="docs/architecture-sequence.png" alt="Sequence view: upload, parallel spatial and patch-level extraction, reliability-weighted fusion, disagreement-aware calibration, audit log and JSON response" width="100%"/>
+</p>
+
+*The two figures are the design view. What runs in this repo today is the pipeline below: `POST /api/analyze`,
+the FastAPI classifier and sentinel on `:8100`, the Gemini vision read, the in-browser DCT read and an
+in-process cache.*
 
 ```
 Browser: file → data URL → POST /api/analyze
@@ -299,7 +307,7 @@ src/
 
 vpt_server/server.py             FastAPI: /health /classify-json /analyze-json
 scripts/download_model.py        Model weight downloader
-docs/                            README images and the architecture diagram
+docs/                            README images and the two architecture diagrams
 public/specimen-synthetic.webp   The AI-generated specimen shown on the landing page
 ```
 
