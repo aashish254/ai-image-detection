@@ -1,8 +1,8 @@
+# OriginLayer
+
 <p align="center">
   <img src="docs/readme/01-landing.webp" alt="OriginLayer landing page: the specimen plate, the SYNTHETIC seal and the measurement readout" width="100%"/>
 </p>
-
-# OriginLayer
 
 **Multi-modal forensic analysis for AI-generated images.**
 
