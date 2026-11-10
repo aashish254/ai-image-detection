@@ -1,19 +1,19 @@
 /**
  * REGION-SPECIFIC DCT CROSS-VERIFICATION
  * ========================================
- * 
+ *
  * The "Second Opinion" filter for VPT artifact detections.
- * 
+ *
  * How it works:
  * 1. VPT says: "Artifact at [ymin, xmin, ymax, xmax]"
  * 2. This module CROPS that specific region from the image
  * 3. Runs localized DCT/entropy analysis on JUST that spot
  * 4. If the spot looks statistically "natural" → DISCARD (false alarm)
  * 5. If it finds mathematical anomalies → CONFIRMED artifact
- * 
+ *
  * This "Handshake" between Semantic AI (VPT) and Statistical AI (DCT)
  * drastically reduces false positives.
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 
@@ -267,7 +267,7 @@ function calculateLocalEntropy(data: Buffer, width: number, height: number): num
  * Calculate high-frequency noise using Laplacian variance.
  * High variance = sharp edges or AI checkerboard noise
  * Low variance = smooth natural texture or AI smudging
- * 
+ *
  * Laplacian Kernel:
  *   0  1  0
  *   1 -4  1

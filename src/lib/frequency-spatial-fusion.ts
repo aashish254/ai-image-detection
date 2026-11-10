@@ -1,17 +1,17 @@
 /**
  * NOVEL CONTRIBUTION #1: Frequency-Spatial Fusion Network (FSFN)
- * 
+ *
  * This module implements a novel dual-branch approach that analyzes images
  * in BOTH the spatial domain (pixel-level features) AND frequency domain
  * (DCT/FFT spectral features), then fuses them using attention mechanisms.
- * 
+ *
  * Key Innovation:
  * Most AI detectors analyze images in a single domain. Our approach:
  * 1. Extracts spatial features (edges, textures, patterns)
  * 2. Extracts frequency features (spectral anomalies, DCT coefficients)
  * 3. Uses cross-modal attention to fuse both domains
  * 4. Detects artifacts invisible in one domain but visible in another
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 

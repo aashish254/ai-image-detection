@@ -1,6 +1,6 @@
 /**
  * REAL Image Analysis Utilities
- * 
+ *
  * This module provides ACTUAL pixel-based analysis instead of hash simulations.
  * It extracts real features from base64 images for accurate AI detection.
  */

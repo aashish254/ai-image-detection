@@ -1,9 +1,9 @@
 /**
  * NOVEL CONTRIBUTION #3: Ensemble Uncertainty Quantification (EUQ)
- * 
+ *
  * This module implements rigorous uncertainty quantification for AI detection,
  * providing confidence intervals and reliability metrics.
- * 
+ *
  * Key Innovation:
  * Most AI detectors give a single score without uncertainty bounds.
  * Our EUQ module:
@@ -11,11 +11,11 @@
  * 2. Provides confidence intervals (e.g., 75% ± 12%)
  * 3. Flags high-uncertainty cases for human review
  * 4. Quantifies both aleatoric and epistemic uncertainty
- * 
+ *
  * Types of Uncertainty:
  * - Aleatoric: Inherent noise in the data (irreducible)
  * - Epistemic: Model uncertainty due to limited training (reducible)
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 

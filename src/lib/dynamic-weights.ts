@@ -1,22 +1,22 @@
 /**
  * NOVEL CONTRIBUTION #3: Dynamic Reliability-Weighted Fusion (DRWF)
- * 
+ *
  * This module implements a novel approach to multi-modal fusion that
  * dynamically adjusts weights based on each detector's self-reported
  * reliability for the specific image being analyzed.
- * 
+ *
  * Paper Reference: "Dynamic Reliability Weighting for Robust Multi-Modal Fusion"
- * 
+ *
  * Key Innovation:
  * Traditional fusion uses fixed static weights:
  *   score = 0.6*HF + 0.3*VLM + 0.1*DCT
- * 
+ *
  * Our approach dynamically adjusts weights based on:
  * 1. Detector's internal confidence for this specific image
  * 2. Detector's response status (success, error, fallback)
  * 3. Processing time (faster may indicate cached/trivial result)
  * 4. Historical reliability metrics
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 
@@ -104,7 +104,7 @@ const RELIABILITY_CONFIG = {
 
 /**
  * Calculate reliability score for a single detector
- * 
+ *
  * Reliability = α*confidence + β*status_score + γ*time_score
  */
 export function calculateDetectorReliability(detector: DetectorWithMetadata): number {

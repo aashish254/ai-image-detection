@@ -1,6 +1,6 @@
 /**
  * Enhanced Heatmap Generation with Frequency Analysis and Reconstruction Error
- * 
+ *
  * This module generates advanced heatmaps showing:
  * 1. High-frequency noise fingerprints (DFT/FFT analysis)
  * 2. Reconstruction error mapping (AI struggle zones)
@@ -45,7 +45,7 @@ function analyzeFrequencyPatterns(base64: string): number[] {
         const startPos = Math.floor((i / (gridSize * gridSize)) * sampleSize);
         const endPos = Math.min(startPos + 300, sampleSize);
 
-        // Calculate local entropy (proxy for noise patterns)       
+        // Calculate local entropy (proxy for noise patterns)
         const chunk = data.slice(startPos, endPos);
         const freq: { [key: string]: number } = {};
 

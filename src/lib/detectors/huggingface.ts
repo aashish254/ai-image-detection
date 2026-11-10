@@ -5,13 +5,13 @@ import { DetectorResult } from '../types';
  * ==========================
  * Replaces the remote HuggingFace Inference API with a local
  * Organika/sdxl-detector running on the Python backend (port 8100).
- * 
+ *
  * Why:
  * - No internet dependency (runs fully offline)
  * - No rate limits or cold starts
  * - Faster inference (no HTTP round-trip to HuggingFace cloud)
  * - Model stays in GPU/CPU memory (loaded once on server start)
- * 
+ *
  * Architecture:
  *   Next.js → POST /classify-json → Python FastAPI (port 8100) → Organika Model → Score
  */
@@ -84,7 +84,7 @@ export async function detectWithHuggingFace(
 /**
  * Heuristic analysis when the local classifier is unavailable.
  * Uses image byte characteristics to estimate AI probability.
- * 
+ *
  * NOTE: This is a last-resort fallback. The local classifier should
  * be running for accurate results.
  */

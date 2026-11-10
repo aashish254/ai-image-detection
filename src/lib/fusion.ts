@@ -1,11 +1,11 @@
 /**
  * ADVANCED FUSION MODULE
- * 
+ *
  * Integrates all three novel contributions:
  * 1. Disagreement-Aware Confidence Calibration (DACC)
  * 2. Spatial Artifact Mapping (SAM)
  * 3. Dynamic Reliability-Weighted Fusion (DRWF)
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 

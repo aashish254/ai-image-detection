@@ -1,9 +1,9 @@
 /**
  * NOVEL CONTRIBUTION #2: Explainable AI Detection (XAI-Detect)
- * 
+ *
  * This module implements visual explanations for AI detection decisions,
  * similar to Grad-CAM++ but adapted for AI artifact detection.
- * 
+ *
  * Key Innovation:
  * Most AI detectors are "black boxes" - they give a score but don't explain WHY.
  * Our XAI module:
@@ -11,7 +11,7 @@
  * 2. Provides natural language explanations for each finding
  * 3. Ranks artifacts by importance/confidence
  * 4. Supports forensic investigation by highlighting specific issues
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 
@@ -30,7 +30,7 @@ export interface XAIRegion {
 export type XAICategory =
     | 'anatomical'      // Face/body issues
     | 'texture'         // Skin/surface texture
-    | 'lighting'        // Light/shadow issues  
+    | 'lighting'        // Light/shadow issues
     | 'frequency'       // Spectral anomalies
     | 'semantic'        // Logical impossibilities
     | 'edge'            // Boundary artifacts

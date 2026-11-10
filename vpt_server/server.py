@@ -44,11 +44,11 @@ if platform.system() == "Windows":
     def _patch_triton_for_windows():
         """
         Fix the 'cannot import name AttrsDescriptor from triton.compiler.compiler' error.
-        
+
         On Windows, triton is installed but the `triton.compiler.compiler` module
         is missing the `AttrsDescriptor` class (it exists in the Linux version).
         The `transformers` library tries to import it, causing a crash.
-        
+
         Fix: Simply add a dummy AttrsDescriptor to the existing module.
         This preserves all working triton functionality (Config, jit, etc.)
         while fixing the specific missing attribute error.
@@ -62,14 +62,14 @@ if platform.system() == "Windows":
                     equal_to_1 = ()
                     ids_of_folded_args = ()
                     divisible_by_8 = ()
-                    
+
                     def __init__(self, divisible_by_16=(), equal_to_1=(),
                                  ids_of_folded_args=(), divisible_by_8=(), *args, **kwargs):
                         self.divisible_by_16 = divisible_by_16
                         self.equal_to_1 = equal_to_1
                         self.ids_of_folded_args = ids_of_folded_args
                         self.divisible_by_8 = divisible_by_8
-                
+
                 tcc.AttrsDescriptor = AttrsDescriptor
                 logging.basicConfig(level=logging.INFO)
                 logging.getLogger("vpt-server").info(
@@ -167,7 +167,7 @@ class VPTResponse(BaseModel):
 def load_model():
     """
     Load the VPT model with LoRA adapter.
-    
+
     Uses standard transformers + peft + bitsandbytes (works on ALL platforms with CUDA).
     Does NOT require unsloth or triton.
     """
@@ -255,7 +255,7 @@ def load_model():
             import psutil
             available_ram_gb = psutil.virtual_memory().available / 1024**3
             logger.info(f"[VPT] Available RAM: {available_ram_gb:.1f} GB")
-            
+
             if available_ram_gb < 10:
                 vpt_load_error = (
                     f"Not enough memory for VPT model. "
@@ -323,7 +323,7 @@ def load_model():
 def load_classifier():
     """
     Load the Organika/sdxl-detector model for local AI image classification.
-    
+
     This model works on both Windows (CPU) and Linux (GPU).
     It does NOT require triton or unsloth.
     """
@@ -365,7 +365,7 @@ def load_classifier():
 def parse_vpt_output(raw_text: str, img_width: int, img_height: int) -> list[VPTDetection]:
     """
     Parse the VPT model output text to extract detections.
-    
+
     Expected formats:
     - "Real" → no detections
     - "AI detected at [ymin, xmin, ymax, xmax]" → bounding box detection
@@ -593,7 +593,7 @@ async def health():
 async def analyze_endpoint(file: UploadFile = File(None), image_base64: str = Form(None)):
     """
     Analyze an image for AI artifacts.
-    
+
     Accepts either:
     - file: uploaded image file
     - image_base64: base64-encoded image (with or without data URL prefix)
@@ -668,11 +668,11 @@ async def classify_local_endpoint(
 ):
     """
     Classify an image as AI-generated or Real using the local Organika/sdxl-detector.
-    
+
     Accepts either:
     - file: uploaded image file (multipart/form-data)
     - image_base64: base64-encoded image string
-    
+
     Returns: AI probability score (0-1)
     """
     global classifier_model, classifier_processor, classifier_device

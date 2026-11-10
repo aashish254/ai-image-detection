@@ -1,6 +1,6 @@
 /**
  * ENHANCED SPATIAL HEATMAP - Real Frequency Analysis
- * 
+ *
  * This component visualizes:
  * - High-frequency noise fingerprints (DFT/FFT-style analysis)
  * - Reconstruction error hotspots
