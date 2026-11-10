@@ -294,16 +294,16 @@ export interface VPTWithCrossVerifyResult extends VPTAnalysisResult {
 
 /**
  * Full VPT + DCT Cross-Verification Pipeline.
- * 
+ *
  * This is the "Cascading" strategy:
  * 1. VPT detects candidate artifact regions (bounding boxes)
  * 2. Each bounding box is CROPPED from the image
  * 3. Localized DCT analysis runs on just that crop
  * 4. If DCT finds anomalies → CONFIRMED. If not → DISCARDED.
- * 
+ *
  * VPT is the "Spotter" (semantic understanding)
  * DCT is the "Scientist" (mathematical verification)
- * 
+ *
  * This drastically reduces false positives.
  */
 export async function analyzeWithVPTAndCrossVerify(

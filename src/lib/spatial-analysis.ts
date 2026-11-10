@@ -1,11 +1,11 @@
 /**
  * NOVEL CONTRIBUTION #2: Spatial Artifact Mapping (SAM)
- * 
+ *
  * This module implements a novel approach to AI-generated image detection
  * that provides spatial localization of artifacts through region-based analysis.
- * 
+ *
  * Paper Reference: "Spatial Artifact Mapping for Localized AI-Generated Content Detection"
- * 
+ *
  * Key Innovation:
  * Traditional detection analyzes entire images and outputs a single score.
  * Our approach divides images into regions and generates a heatmap showing
@@ -13,7 +13,7 @@
  * 1. Detection of composite/partially-edited images
  * 2. Visual explanation of detection results
  * 3. Localized forensic analysis
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 

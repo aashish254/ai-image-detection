@@ -2,19 +2,19 @@
  * Vision-Language Model Detector (Google Gemini)
  * ================================================
  * Sends the image to Google Gemini Vision API for deep analysis.
- * 
+ *
  * This detector asks Gemini to:
  * 1. Determine if the image is AI-generated or real
  * 2. Look for SynthID / Google watermark traces
  * 3. Identify platform-specific AI generation patterns
  * 4. Provide region-by-region analysis with anomaly descriptions
  * 5. Detect artifacts like lighting inconsistencies, texture issues, etc.
- * 
+ *
  * Features:
  * - Automatic model fallback: gemini-3-flash-preview → gemini-3.1-flash-lite → gemini-2.5-flash
  * - Retry with exponential backoff for transient rate limits
  * - Graceful degradation when all models are quota-exhausted
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 
@@ -59,17 +59,17 @@ Analyze this image carefully and provide your assessment in the following EXACT 
   "internalConfidence": 0.0 to 1.0,
   "overallAssessment": "Detailed text assessment explaining your reasoning",
   "confidenceExplanation": "Why you are confident or uncertain",
-  
+
   "platformDetection": {
     "detectedPlatform": "Google Gemini/Imagen" or "Stable Diffusion" or "DALL-E" or "Midjourney" or "Adobe Firefly" or "Meta AI" or "Flux" or null,
     "synthIdTrace": true/false,
-    "c2paTrace": true/false, 
+    "c2paTrace": true/false,
     "sdWatermark": true/false,
     "metaSignature": true/false,
     "platformConfidence": 0.0 to 1.0,
     "platformEvidence": ["list of specific evidence found"]
   },
-  
+
   "artifactsDetected": [
     {
       "type": "lighting_inconsistency" | "anatomical_anomaly" | "texture_irregularity" | "reflection_error" | "shadow_inconsistency" | "semantic_error" | "edge_artifact" | "frequency_pattern",
@@ -78,9 +78,9 @@ Analyze this image carefully and provide your assessment in the following EXACT 
       "region": "top-left" | "top-center" | "top-right" | "center-left" | "center" | "center-right" | "bottom-left" | "bottom-center" | "bottom-right"
     }
   ],
-  
+
   "semanticIssues": ["Any logical/physical impossibilities"],
-  
+
   "regionAnalysis": {
     "topLeft": { "aiScore": 0.0 to 1.0, "anomalies": ["list of anomalies in this region"] },
     "topRight": { "aiScore": 0.0 to 1.0, "anomalies": ["list of anomalies"] },

@@ -1,13 +1,13 @@
 /**
  * GRAD-CAM Style Point-to-Point Detection & Forensic Report Generator
- * 
+ *
  * Implements interpretability maps to identify specific pixel coordinates
  * where AI artifacts are detected, providing forensic-level explanations.
- * 
+ *
  * KEY FIX: Coordinates are now dynamically generated from actual analysis data,
  * not hardcoded positions. When platform detection (SynthID, SD watermark, etc.)
  * finds evidence, coordinates are derived from the spatial analysis grid.
- * 
+ *
  * Inspired by FakeXplainer framework for localization and reasoning.
  */
 
@@ -284,7 +284,7 @@ export function generateForensicReport(
                         description = matchingGeminiArtifact.description;
                         // Remove from pool so it's not reused
                         geminiArtifacts.splice(geminiArtifacts.indexOf(matchingGeminiArtifact), 1);
-                    } else if (cell.anomalies && cell.anomalies.length > 0 && 
+                    } else if (cell.anomalies && cell.anomalies.length > 0 &&
                                cell.anomalies[0] !== 'Watermark-confirmed AI region') {
                         // Second priority: use actual anomaly labels from Gemini's region analysis
                         anomalyType = cell.anomalies[0];

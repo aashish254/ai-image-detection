@@ -3,7 +3,7 @@ import { DCTResult } from '../types';
 /**
  * Perform DCT (Discrete Cosine Transform) frequency domain analysis
  * to detect spectral anomalies characteristic of AI-generated images
- * 
+ *
  * Note: This is a simplified implementation. For production, you would
  * use a proper image processing library or offload to a service.
  */

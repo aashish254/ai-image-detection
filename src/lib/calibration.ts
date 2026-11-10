@@ -1,20 +1,20 @@
 /**
  * NOVEL CONTRIBUTION #1: Disagreement-Aware Confidence Calibration (DACC)
- * 
+ *
  * This module implements a novel approach to confidence calibration that
  * addresses the fundamental flaw in weighted averaging when detectors disagree.
- * 
+ *
  * Paper Reference: "Adaptive Confidence Calibration via Detector Disagreement Analysis"
- * 
+ *
  * Key Innovation:
  * Traditional multi-modal fusion uses fixed weighted averaging:
  *   score = w1*s1 + w2*s2 + w3*s3
- * 
+ *
  * This fails when detectors fundamentally disagree, producing false confidence.
  * Our approach introduces a disagreement-aware calibration:
  *   calibrated_score = base_score * (1 - λ * disagreement)
  *   trust_score = 1 - disagreement
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 
@@ -250,7 +250,7 @@ function generateDisagreementExplanation(
 
 /**
  * MAIN FUNCTION: Apply Disagreement-Aware Confidence Calibration
- * 
+ *
  * Novel Formula:
  *   calibrated_score = raw_score × (1 - λ × disagreement)
  *   trust_score = 1 - disagreement

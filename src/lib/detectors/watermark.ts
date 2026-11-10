@@ -2,21 +2,21 @@
  * CASCADE WATERMARK & METADATA DETECTION SYSTEM
  * ==============================================
  * Implements a three-level cascade detection system for maximum coverage:
- * 
+ *
  * Level 1: C2PA Content Credentials (Fastest, Definitive)
  *   - Reads cryptographic signatures that explicitly say "Created by DALL-E 3"
  *   - Works for Meta AI, OpenAI DALL-E 3, Adobe Firefly
  *   - Only works if metadata hasn't been stripped
- * 
+ *
  * Level 2: Invisible Watermark Detection (Fast)
  *   - Stable Diffusion: DWT-DCT based invisible watermark
  *   - Google SynthID: Frequency-domain watermark patterns
  *   - Each platform has distinct watermarking patterns
- * 
+ *
  * Level 3: EXIF/XMP Metadata Analysis (Fast, Fallback)
  *   - Software tags, generation parameters
  *   - Platform-specific metadata markers
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 
@@ -347,7 +347,7 @@ function checkC2PAContentCredentials(buffer: Buffer): DetectionResult {
 /**
  * Detect SynthID watermark patterns (Google Gemini/Imagen).
  * SynthID embeds imperceptible watermarks in the frequency domain.
- * 
+ *
  * Key characteristics:
  * - Very uniform spectral distribution across frequency bands
  * - Specific bit patterns in DCT coefficients
@@ -392,7 +392,7 @@ function detectSynthIDWatermark(buffer: Buffer): DetectionResult {
 /**
  * Detect Stable Diffusion invisible watermark.
  * SD uses DWT-DCT (Discrete Wavelet Transform + DCT) based watermarking.
- * 
+ *
  * The watermark is embedded by the `invisible-watermark` library using
  * the dwtDct method, encoding a 32-byte watermark string.
  */

@@ -1,23 +1,23 @@
 /**
  * NOVEL CONTRIBUTION #4: GAN Fingerprint Identification (GFI)
- * 
+ *
  * This module implements a novel approach to not just detect AI-generated images,
  * but to IDENTIFY which AI generator created them.
- * 
+ *
  * Key Innovation:
  * Different AI generators leave unique "fingerprints" in their outputs:
  * - DALL-E: Specific high-frequency patterns, characteristic color distributions
  * - Midjourney: Distinct texture patterns, artistic style artifacts
  * - Stable Diffusion: VAE reconstruction artifacts, specific noise patterns
  * - Firefly: Adobe-specific processing signatures
- * 
+ *
  * Our approach:
  * 1. Extract spectral fingerprints from DCT/FFT analysis
  * 2. Analyze color distribution patterns
  * 3. Detect generator-specific artifacts
  * 4. Use pattern matching against known generator signatures
  * 5. Provide confidence scores for each potential generator
- * 
+ *
  * Authors: Rahul Yadav, Aashish Kumar Mahato, Bibek Gami
  */
 
