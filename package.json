@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "axios": "^1.6.8",
+    "axios": "^1.21.1",
     "crypto-js": "^4.2.0",
     "d3-scale": "^4.0.2",
     "fft.js": "^4.0.4",
